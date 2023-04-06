@@ -1,2 +1,2 @@
-mod example;
+pub mod example;
 
