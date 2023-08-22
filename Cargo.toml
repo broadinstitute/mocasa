@@ -1,11 +1,11 @@
 [package]
-name = "joidis"
-description = "A joint distribution sampler"
+name = "mocasa"
+description = "A Monte Carlo sampler"
 version = "0.1.0"
 edition = "2021"
 authors = ["Oliver Ruebenacker <oliverr@broadinstitute.org>"]
 readme = "README.md"
-repository = "https://github.com/broadinstitute/joidis"
+repository = "https://github.com/broadinstitute/mocasa"
 license = "BSD-3-Clause"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

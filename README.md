@@ -1,3 +1,3 @@
-# joidis
+# mocasa
 
-A joint distribution sampler.
+A Monte Carlo sampler
