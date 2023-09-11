@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use crate::error::{Error, ErrorKind};
 
-mod names {
+pub(crate) mod names {
     pub(crate) const TRAIN: &str = "train";
     pub(crate) const CLASSIFY: &str = "classify";
 }
@@ -25,7 +25,7 @@ impl FromStr for Action {
         match s {
             names::TRAIN => { Ok(Action::Train) }
             names::CLASSIFY => { Ok(Action::Classify) }
-            _ => { Err(Error::new(ErrorKind::UnknownAction, s.to_string()))}
+            _ => { Err(Error::new(ErrorKind::Mocasa, s.to_string()))}
         }
     }
 }

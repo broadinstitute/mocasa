@@ -1,3 +1,8 @@
+use mocasa::run;
+
 fn main() {
-    println!("yo");
+    match run() {
+        Ok(_) => { println!("Done!") }
+        Err(error) => { println!("Error: {}", error)}
+    }
 }

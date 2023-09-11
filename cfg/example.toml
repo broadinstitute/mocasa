@@ -1,0 +1,12 @@
+[[gwas]]
+file = "file1"
+[[gwas]]
+file = "file2"
+[[gwas]]
+file = "file3"
+
+[train]
+ids_file = "ids_list"
+
+[classify]
+ids_file = "ids_list"
