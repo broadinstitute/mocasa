@@ -1,13 +1,18 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::num::ParseFloatError;
 
 mod names {
     pub const MOCASA: &str = "Mocasa error";
     pub const IO: &str = "I/O error";
     pub const TOML_DE: &str = "TOML deserialization error";
+    pub const PARSE_FLOAT: &str = "parse float error";
 }
 
 pub enum ErrorKind {
-    Mocasa, IOError, TomlDe
+    Mocasa,
+    IOError,
+    TomlDe,
+    ParseFloat,
 }
 
 pub struct Error {
@@ -41,12 +46,20 @@ impl From<toml::de::Error> for Error {
     }
 }
 
+impl From<ParseFloatError> for Error {
+    fn from(parse_float_error: ParseFloatError) -> Self {
+        let message = parse_float_error.to_string();
+        Error::new(ErrorKind::ParseFloat, message)
+    }
+}
+
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             ErrorKind::Mocasa => { names::MOCASA }
             ErrorKind::IOError => { names::IO }
             ErrorKind::TomlDe => { names::TOML_DE }
+            ErrorKind::ParseFloat => { names::PARSE_FLOAT }
         }
     }
 }
@@ -75,5 +88,4 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {
-}
+impl std::error::Error for Error {}

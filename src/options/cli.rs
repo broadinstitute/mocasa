@@ -11,7 +11,7 @@ mod params {
 }
 
 pub struct CliOptions {
-    action: Action,
+    pub(crate) action: Action,
     pub(crate) config_file: String,
     dry: bool,
 }

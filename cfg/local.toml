@@ -1,0 +1,19 @@
+[[gwas]]
+name = "fast_ins_adj_bmi"
+file = "/home/oliverr/phenet/gwas/aligned_adj_fi.Chenji2021_Glycaemic_EU.FIadjBMI.txt"
+[[gwas]]
+name = "hdl"
+file = "/home/oliverr/phenet/gwas/aligned_adj_hdl.Graham_2021_lipids_EU.HDL.txt"
+[[gwas]]
+name = "hipc"
+file = "/home/oliverr/phenet/gwas/aligned_adj_hipc.GWAS_GIANT-A_eu.HIPC.txt"
+[[gwas]]
+name = "tg"
+file = "/home/oliverr/phenet/gwas/aligned_adj_tg.Graham_2021_lipids_EU.TG.txt"
+[[gwas]]
+name = "t2d"
+file = "/home/oliverr/phenet/gwas/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
+
+[train]
+ids_file = "/home/oliverr/phenet/training_var_list"
+

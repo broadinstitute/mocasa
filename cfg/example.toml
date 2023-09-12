@@ -1,12 +1,19 @@
 [[gwas]]
-file = "file1"
+name = "fast_ins_adj_bmi"
+file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_fi.Chenji2021_Glycaemic_EU.FIadjBMI.txt"
 [[gwas]]
-file = "file2"
+name = "hdl"
+file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_hdl.Graham_2021_lipids_EU.HDL.txt"
 [[gwas]]
-file = "file3"
+name = "hipc"
+file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_hipc.GWAS_GIANT-A_eu.HIPC.txt"
+[[gwas]]
+name = "tg"
+file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_tg.Graham_2021_lipids_EU.TG.txt"
+[[gwas]]
+name = "t2d"
+file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
 
 [train]
-ids_file = "ids_list"
+ids_file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_lipo_var_ids/aligned_lipo_var_ids_LPLremoved.txt training_var_list"
 
-[classify]
-ids_file = "ids_list"

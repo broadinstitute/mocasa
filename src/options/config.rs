@@ -4,9 +4,8 @@ use crate::error::Error;
 
 #[derive(Deserialize)]
 pub(crate) struct Config {
-    pub(crate) gwas: Vec<GWAS>,
+    pub(crate) gwas: Vec<Gwas>,
     pub(crate) train: Train,
-    pub(crate) classify: Classify
 }
 
 #[derive(Deserialize)]
@@ -15,12 +14,8 @@ pub(crate) struct Train {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct Classify {
-    pub(crate) ids_file: String
-}
-
-#[derive(Deserialize)]
-pub(crate) struct GWAS {
+pub(crate) struct Gwas {
+    pub(crate) name: String,
     pub(crate) file: String
 }
 
