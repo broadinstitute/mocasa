@@ -1,7 +1,7 @@
 use std::io::{BufRead, Lines};
 use crate::error::Error;
 
-mod cols {
+pub(crate) mod cols {
     pub(crate) const VAR_ID: &str = "VAR_ID";
     pub(crate) const BETA: &str = "BETA";
     pub(crate) const SE: &str = "SE";

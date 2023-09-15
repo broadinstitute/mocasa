@@ -13,7 +13,7 @@ mod params {
 pub struct CliOptions {
     pub(crate) action: Action,
     pub(crate) config_file: String,
-    dry: bool,
+    pub(crate) dry: bool,
 }
 
 fn new_action_command(name: &'static str) -> Command {
