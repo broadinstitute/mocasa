@@ -8,6 +8,7 @@ mod error;
 mod train;
 mod classify;
 mod data;
+mod math;
 
 pub fn run() -> Result<(), Error> {
     let cli_options = get_cli_options()?;

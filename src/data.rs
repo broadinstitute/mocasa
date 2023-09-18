@@ -21,6 +21,8 @@ pub(crate) struct BetaSe {
 
 impl TrainData {
     pub(crate) fn len(&self) -> usize { self.names.len() }
+    pub(crate) fn n_traits(&self) -> usize { self.names.len() }
+    pub(crate) fn n_data_points(&self) -> usize { self.beta_se_lists.len() }
 }
 
 impl Display for BetaSe {
