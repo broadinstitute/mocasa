@@ -5,12 +5,18 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::sync::Arc;
 use crate::data::gwas::{GwasReader, GwasRecord};
 use crate::error::Error;
 use crate::options::config::Config;
 
+pub(crate) struct Meta {
+    pub(crate) trait_names: Vec<String>,
+    pub(crate) n_data_points: usize
+}
+
 pub(crate) struct TrainData {
-    pub(crate) names: Vec<String>,
+    pub(crate) meta: Arc<Meta>,
     pub(crate) beta_se_lists: BTreeMap<String, Vec<BetaSe>>,
 }
 
@@ -19,9 +25,13 @@ pub(crate) struct BetaSe {
     pub(crate) se: f64,
 }
 
+impl Meta {
+    pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
+}
+
 impl TrainData {
-    pub(crate) fn n_data_points(&self) -> usize { self.beta_se_lists.len() }
-    pub(crate) fn n_traits(&self) -> usize { self.names.len() }
+    pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points }
+    pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
 }
 
 impl Display for BetaSe {
@@ -33,8 +43,8 @@ impl Display for BetaSe {
 impl Display for TrainData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", gwas::cols::VAR_ID)?;
-        for name in &self.names {
-            write!(f, "\tbeta_{}\tse_{}", name, name)?;
+        for trait_name in &self.meta.trait_names {
+            write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
         writeln!(f)?;
         for (var_id, beta_se_list) in &self.beta_se_lists {
@@ -50,13 +60,15 @@ impl Display for TrainData {
 
 pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
     let mut beta_se_lists = load_ids(&config.train.ids_file)?;
-    let mut names: Vec<String> = Vec::new();
+    let mut trait_names: Vec<String> = Vec::new();
     for gwas in &config.gwas {
-        names.push(gwas.name.clone());
+        trait_names.push(gwas.name.clone());
         load_gaws(&mut beta_se_lists, &gwas.file)?;
-        check_n_beta_se(&beta_se_lists, names.len())?;
+        check_n_beta_se(&beta_se_lists, trait_names.len())?;
     }
-    Ok(TrainData { names, beta_se_lists })
+    let n_data_points = beta_se_lists.len();
+    let meta = Arc::new(Meta{ trait_names, n_data_points });
+    Ok(TrainData { meta, beta_se_lists })
 }
 
 fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {

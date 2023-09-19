@@ -1,4 +1,6 @@
-use crate::data::TrainData;
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
+use crate::data::{Meta, TrainData};
 use crate::math::matrix::Matrix;
 
 pub(crate) struct TrainModel {
@@ -6,6 +8,7 @@ pub(crate) struct TrainModel {
 }
 
 pub(crate) struct Params {
+    meta: Arc<Meta>,
     mu: f64,
     tau: f64,
     betas: Vec<f64>,
@@ -22,11 +25,12 @@ impl TrainModel {
         TrainModel { data }
     }
     pub(crate) fn initial_params(&self) -> Params {
+        let meta = self.data.meta.clone();
         let mu = 0.0;
         let tau = 1.0;
         let betas = vec![1.0; self.data.n_traits()];
         let sigmas = vec![1.0; self.data.n_traits()];
-        Params { mu, tau, betas, sigmas }
+        Params { meta, mu, tau, betas, sigmas }
     }
     pub(crate) fn initial_vars(&self, params: &Params) -> Vars {
         let es = vec![params.mu; self.data.n_data_points()];
@@ -37,5 +41,11 @@ impl TrainModel {
             Matrix::fill(self.data.n_data_points(), self.data.n_traits(),
                          element_gen);
         Vars { es, ts }
+    }
+}
+
+impl Display for Params {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
     }
 }
