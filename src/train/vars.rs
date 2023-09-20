@@ -10,8 +10,8 @@ pub(crate) struct Vars {
 }
 
 pub(crate) enum VarIndex {
-    Es { i_data_point: usize },
-    Ts { i_data_point: usize, i_trait: usize },
+    E { i_data_point: usize },
+    T { i_data_point: usize, i_trait: usize },
 }
 
 impl Vars {
@@ -19,9 +19,9 @@ impl Vars {
         let n_data_points = self.meta.n_data_points;
         let n_traits = self.meta.n_traits();
         (0..n_data_points).flat_map(move |i_data_point| {
-            iter::once(VarIndex::Es { i_data_point })
+            iter::once(VarIndex::E { i_data_point })
                 .chain((0..n_traits).map(move |i_trait| {
-                    VarIndex::Ts { i_data_point, i_trait }
+                    VarIndex::T { i_data_point, i_trait }
                 }))
         })
     }

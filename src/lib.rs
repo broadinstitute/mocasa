@@ -9,6 +9,7 @@ mod train;
 mod classify;
 mod data;
 mod math;
+mod mcmc;
 
 pub fn run() -> Result<(), Error> {
     let cli_options = get_cli_options()?;

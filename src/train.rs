@@ -23,10 +23,11 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 }
 
 fn train(data: TrainData) -> Result<Params, Error> {
+    let meta = data.meta.clone();
     let model = TrainModel::new(data);
     let mut params = model.initial_params();
     let mut vars = model.initial_vars(&params);
-    let sampler = Sampler::new();
+    let mut sampler = Sampler::new(meta);
     loop {
         let mut stats = ParamDiffStats::new();
         let stats =
