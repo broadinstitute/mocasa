@@ -4,6 +4,8 @@ mod sampler;
 mod params;
 mod vars;
 
+use rand::prelude::ThreadRng;
+use rand::thread_rng;
 use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::Config;
@@ -27,7 +29,8 @@ fn train(data: TrainData) -> Result<Params, Error> {
     let model = TrainModel::new(data);
     let mut params = model.initial_params();
     let mut vars = model.initial_vars(&params);
-    let mut sampler = Sampler::new(meta);
+    let rng = thread_rng();
+    let mut sampler = Sampler::<ThreadRng>::new(meta, rng);
     loop {
         let mut stats = ParamDiffStats::new();
         let stats =
