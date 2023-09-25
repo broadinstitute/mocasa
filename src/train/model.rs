@@ -31,7 +31,41 @@ impl TrainModel {
                          element_gen);
         Vars { meta, es, ts }
     }
+    pub(crate) fn f_quot_e<'a>(&self, params: &'a Params, vars: &'a Vars, i_data_point: &'a usize)
+                               -> impl Fn(f64, f64) -> f64 + 'a {
+        |e_new: f64, e_old: f64| {
+            let mu = params.mu;
+            let tau = params.tau;
+            let e_term =
+                ((e_new - mu).powi(2) - (e_old - mu).powi(2)) / tau.powi(2);
+            let ts = &vars.ts[*i_data_point];
+            let t_sum: f64 =
+                (0..params.meta.n_traits()).map(|i_trait: usize| {
+                    ((ts[i_trait] - params.betas[i_trait] * e_new).powi(2) -
+                        (ts[i_trait] - params.betas[i_trait] * e_old).powi(2)) /
+                        params.sigmas[i_trait].powi(2)
+                }).sum();
+            (-0.5 * (e_term + t_sum)).exp()
+        }
+    }
+    pub(crate) fn f_quot_t<'a>(&self, params: &'a Params, vars: &'a Vars, i_data_point: &'a usize,
+                               i_trait: &'a usize)
+                               -> impl Fn(f64, f64) -> f64 + 'a {
+        |t_new: f64, t_old: f64| {
+            let mu = params.mu;
+            let tau = params.tau;
+                ((t_new - mu).powi(2) - (t_old - mu).powi(2)) / tau.powi(2);
+            let e = vars.es[*i_data_point];
+            let t_term =
+                ((t_new - params.betas[*i_trait]*e).powi(2) -
+                    (t_old - params.betas[*i_trait]*e).powi(2)) /
+                    params.sigmas[*i_trait].powi(2);
+            // let o = self.data.beta_se_lists[*i_data_point];
+            todo!()
+        }
+    }
     pub(crate) fn evaluate_params(&self, params: &Params, vars: &Vars) -> ParamDiffs {
         todo!()
     }
 }
+

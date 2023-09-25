@@ -5,21 +5,22 @@ pub(crate) struct MetroHast<R: Rng> {
 }
 
 pub(crate) struct Draw {
-    x: f64,
-    attempts: usize,
+    pub(crate) x: f64,
+    pub(crate) attempts: usize,
 }
 
 impl<R: Rng> MetroHast<R> {
     pub(crate) fn new(rng: R) -> MetroHast<R> { MetroHast { rng } }
-    pub(crate) fn draw<F: Fn(f64, f64) -> f64>(&mut self, f_quot: F, x0: f64, sigma: f64) -> Draw {
+    pub(crate) fn draw<F: Fn(f64, f64) -> f64>(&mut self, f_quot: F, x_old: f64, sigma: f64)
+        -> Draw {
         let mut attempts: usize = 0;
         let x =
             loop {
                 attempts += 1;
-                let x = self.rng.gen_range((x0 - sigma)..(x0 + sigma));
-                let quot = f_quot(x0, x);
+                let x_new = self.rng.gen_range((x_old - sigma)..(x_old + sigma));
+                let quot = f_quot(x_new, x_old);
                 if quot >= 1.0 || quot > self.rng.gen_range(0.0..1.0) {
-                    break x;
+                    break x_new;
                 }
             };
         Draw { x, attempts }

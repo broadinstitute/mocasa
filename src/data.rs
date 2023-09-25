@@ -8,16 +8,18 @@ use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 use crate::data::gwas::{GwasReader, GwasRecord};
 use crate::error::Error;
+use crate::math::matrix::Matrix;
 use crate::options::config::Config;
 
 pub(crate) struct Meta {
     pub(crate) trait_names: Vec<String>,
-    pub(crate) n_data_points: usize
+    pub(crate) n_data_points: usize,
 }
 
 pub(crate) struct TrainData {
     pub(crate) meta: Arc<Meta>,
-    pub(crate) beta_se_lists: BTreeMap<String, Vec<BetaSe>>,
+    pub(crate) betas: Matrix,
+    pub(crate) ses: Matrix,
 }
 
 pub(crate) struct BetaSe {
@@ -67,8 +69,18 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
         check_n_beta_se(&beta_se_lists, trait_names.len())?;
     }
     let n_data_points = beta_se_lists.len();
-    let meta = Arc::new(Meta{ trait_names, n_data_points });
-    Ok(TrainData { meta, beta_se_lists })
+    let n_traits = trait_names.len();
+    let meta = Arc::new(Meta { trait_names, n_data_points });
+    let n = n_data_points * n_traits;
+    let mut betas: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
+    let mut ses: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
+    for (i_data_point, beta_se) in beta_se_lists.values().enumerate() {
+        for (i_trait, name) in meta.trait_names.iter().enumerate() {
+            betas[i_data_point][i_trait] = beta_se[i_trait].beta;
+            ses[i_data_point][i_trait] = beta_se[i_trait].se;
+        }
+    }
+    Ok(TrainData { meta, betas, ses })
 }
 
 fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {

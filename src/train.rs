@@ -16,7 +16,7 @@ use crate::train::sampler::Sampler;
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_training_data(config)?;
-    println!("Loaded data for {} variants", data.beta_se_lists.len());
+    println!("Loaded data for {} variants", data.meta.n_data_points);
     println!("{}", data);
     if !dry {
         train(data)?;

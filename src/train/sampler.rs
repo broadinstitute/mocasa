@@ -29,7 +29,7 @@ impl<R: Rng> Sampler<R> {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point } => {
-                    vars.es[i_data_point] = self.sample_e(model, params, vars, i_data_point);
+                    vars.es[i_data_point] = self.sample_e(model, params, vars, &i_data_point);
                 }
                 VarIndex::T { i_data_point, i_trait } => {
                     vars.ts[i_data_point][i_trait] =
@@ -39,9 +39,12 @@ impl<R: Rng> Sampler<R> {
         }
     }
     pub(crate) fn sample_e(&mut self, model: &TrainModel, params: &Params, vars: &Vars,
-                           i_data_point: usize) -> f64 {
-
-        todo!()
+                           i_data_point: &usize) -> f64 {
+        let f_quot = model.f_quot_e(params, vars, i_data_point);
+        let e_old = vars.es[*i_data_point];
+        let sigma_estimate = self.e_stats[*i_data_point].variance().unwrap_or(1.0);
+        let draw = self.metro_hast.draw(f_quot, e_old, sigma_estimate);
+        draw.x
     }
     pub(crate) fn sample_t(&mut self, model: &TrainModel, params: &Params, vars: &Vars,
                            i_data_point: usize, i_trait: usize) -> f64 {

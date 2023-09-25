@@ -7,9 +7,7 @@ pub(crate) struct Matrix {
 }
 
 impl Matrix {
-    pub(crate) fn new(n_rows: usize, n_cols: usize, value: f64) -> Matrix {
-        let n = n_rows * n_cols;
-        let elements = vec![value; n];
+    pub(crate) fn new(n_rows: usize, n_cols: usize, elements: Vec<f64>) -> Matrix {
         Matrix { n_rows, n_cols, elements }
     }
     fn i(&self, i_row: usize, i_col: usize) -> usize { i_row * self.n_cols + i_col }
