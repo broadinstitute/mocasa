@@ -72,7 +72,6 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
     }
     let n_data_points = beta_se_lists.len();
     let n_traits = trait_names.len();
-    let n = n_data_points * n_traits;
     let mut var_ids: Vec<String> = Vec::new();
     let mut betas: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
     let mut ses: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });

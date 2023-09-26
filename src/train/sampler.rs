@@ -33,7 +33,7 @@ impl<R: Rng> Sampler<R> {
                 }
                 VarIndex::T { i_data_point, i_trait } => {
                     vars.ts[i_data_point][i_trait] =
-                        self.sample_t(model, params, vars, i_data_point, i_trait);
+                        self.sample_t(model, params, vars, &i_data_point, &i_trait);
                 }
             }
         }
@@ -47,7 +47,12 @@ impl<R: Rng> Sampler<R> {
         draw.x
     }
     pub(crate) fn sample_t(&mut self, model: &TrainModel, params: &Params, vars: &Vars,
-                           i_data_point: usize, i_trait: usize) -> f64 {
-        todo!()
+                           i_data_point: &usize, i_trait: &usize) -> f64 {
+        let f_quot = model.f_quot_t(params, vars, i_data_point, i_trait);
+        let t_old = vars.ts[*i_data_point][*i_trait];
+        let sigma_estimate =
+            self.t_stats[*i_data_point][*i_trait].variance().unwrap_or(1.0);
+        let draw = self.metro_hast.draw(f_quot, t_old, sigma_estimate);
+        draw.x
     }
 }
