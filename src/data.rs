@@ -13,7 +13,7 @@ use crate::options::config::Config;
 
 pub(crate) struct Meta {
     pub(crate) trait_names: Vec<String>,
-    pub(crate) n_data_points: usize,
+    pub(crate) var_ids: Vec<String>,
 }
 
 pub(crate) struct TrainData {
@@ -28,11 +28,12 @@ pub(crate) struct BetaSe {
 }
 
 impl Meta {
+    pub(crate) fn n_data_points(&self) -> usize { self.var_ids.len() }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
 }
 
 impl TrainData {
-    pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points }
+    pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points() }
     pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
 }
 
@@ -49,10 +50,11 @@ impl Display for TrainData {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
         writeln!(f)?;
-        for (var_id, beta_se_list) in &self.beta_se_lists {
+        for (i_data_point, var_id) in self.meta.var_ids.iter().enumerate() {
             write!(f, "{}", var_id)?;
-            for beta_se in beta_se_list {
-                write!(f, "\t{}\t{}", beta_se.beta, beta_se.se)?
+            for (i_trait, _) in self.meta.trait_names.iter().enumerate() {
+                write!(f, "\t{}\t{}", self.betas[i_data_point][i_trait],
+                       self.ses[i_data_point][i_trait])?
             }
             writeln!(f)?
         }
@@ -70,16 +72,19 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
     }
     let n_data_points = beta_se_lists.len();
     let n_traits = trait_names.len();
-    let meta = Arc::new(Meta { trait_names, n_data_points });
     let n = n_data_points * n_traits;
+    let mut var_ids: Vec<String> = Vec::new();
     let mut betas: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
     let mut ses: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
-    for (i_data_point, beta_se) in beta_se_lists.values().enumerate() {
-        for (i_trait, name) in meta.trait_names.iter().enumerate() {
+    for (i_data_point, (var_id, beta_se))
+    in beta_se_lists.iter().enumerate() {
+        var_ids.push(var_id.clone());
+        for (i_trait, _) in trait_names.iter().enumerate() {
             betas[i_data_point][i_trait] = beta_se[i_trait].beta;
             ses[i_data_point][i_trait] = beta_se[i_trait].se;
         }
     }
+    let meta = Arc::new(Meta { trait_names, var_ids });
     Ok(TrainData { meta, betas, ses })
 }
 

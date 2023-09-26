@@ -16,7 +16,7 @@ pub(crate) enum VarIndex {
 
 impl Vars {
     pub(crate) fn indices(&self) -> impl Iterator<Item=VarIndex> {
-        let n_data_points = self.meta.n_data_points;
+        let n_data_points = self.meta.n_data_points();
         let n_traits = self.meta.n_traits();
         (0..n_data_points).flat_map(move |i_data_point| {
             iter::once(VarIndex::E { i_data_point })
