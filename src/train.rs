@@ -10,7 +10,7 @@ use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::Config;
 use crate::train::model::TrainModel;
-use crate::train::param_stats::ParamDiffStats;
+use crate::train::param_stats::ParamHessianStats;
 use crate::train::params::Params;
 use crate::train::sampler::Sampler;
 
@@ -32,12 +32,12 @@ fn train(data: TrainData) -> Result<Params, Error> {
     let rng = thread_rng();
     let mut sampler = Sampler::<ThreadRng>::new(meta, rng);
     loop {
-        let mut stats = ParamDiffStats::new();
+        let mut stats = ParamHessianStats::new();
         let stats =
             loop {
                 sampler.sample(&model, &params, &mut vars);
                 let sample = model.evaluate_params(&params, &vars);
-                stats.add_diffs(sample);
+                stats.add_hessian(sample);
                 if stats.ready_for_param_estimate() {
                     break stats;
                 }

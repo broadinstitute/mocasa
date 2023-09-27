@@ -1,6 +1,6 @@
 use crate::data::TrainData;
 use crate::math::matrix::Matrix;
-use crate::train::param_stats::ParamDiffs;
+use crate::train::param_stats::ParamHessian;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 
@@ -63,7 +63,7 @@ impl TrainModel {
             (-0.5 * (t_term + o_term)).exp()
         }
     }
-    pub(crate) fn evaluate_params(&self, params: &Params, vars: &Vars) -> ParamDiffs {
+    pub(crate) fn evaluate_params(&self, params: &Params, vars: &Vars) -> ParamHessian {
         todo!()
     }
 }
