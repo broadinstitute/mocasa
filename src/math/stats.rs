@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub(crate) struct Stats {
     pub(crate) n: usize,
     pub(crate) sum: f64,

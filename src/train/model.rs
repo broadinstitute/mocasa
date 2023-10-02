@@ -1,6 +1,7 @@
-use crate::data::TrainData;
+use std::sync::Arc;
+use crate::data::{Meta, TrainData};
 use crate::math::matrix::Matrix;
-use crate::train::param_stats::ParamHessian;
+use crate::train::param_eval::ParamEval;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 
@@ -12,6 +13,7 @@ impl TrainModel {
     pub(crate) fn new(data: TrainData) -> TrainModel {
         TrainModel { data }
     }
+    pub(crate) fn meta(&self) -> &Arc<Meta> { &self.data.meta }
     pub(crate) fn initial_params(&self) -> Params {
         let meta = self.data.meta.clone();
         let mu = 0.0;
@@ -63,8 +65,8 @@ impl TrainModel {
             (-0.5 * (t_term + o_term)).exp()
         }
     }
-    pub(crate) fn evaluate_params(&self, params: &Params, vars: &Vars) -> ParamHessian {
-        todo!()
+    pub(crate) fn param_eval(&self, params: &Params, vars: &Vars) -> ParamEval {
+        ParamEval::new(self, params, vars)
     }
 }
 

@@ -14,7 +14,7 @@ pub(crate) struct Sampler<R: Rng> {
 }
 
 impl<R: Rng> Sampler<R> {
-    pub(crate) fn new<RN: Rng>(meta: Arc<Meta>, rng: RN) -> Sampler<RN> {
+    pub(crate) fn new(meta: Arc<Meta>, rng: R) -> Sampler<R> {
         let n_data_points = meta.n_data_points();
         let n_traits = meta.n_traits();
         let e_stats: Vec<Stats> = (0..n_data_points).map(|_| Stats::new()).collect();

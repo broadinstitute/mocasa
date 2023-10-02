@@ -3,6 +3,7 @@ mod param_stats;
 mod sampler;
 mod params;
 mod vars;
+mod param_eval;
 
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
@@ -32,12 +33,12 @@ fn train(data: TrainData) -> Result<Params, Error> {
     let rng = thread_rng();
     let mut sampler = Sampler::<ThreadRng>::new(meta, rng);
     loop {
-        let mut stats = ParamHessianStats::new();
+        let mut stats = ParamHessianStats::new(model.meta().n_traits());
         let stats =
             loop {
                 sampler.sample(&model, &params, &mut vars);
-                let sample = model.evaluate_params(&params, &vars);
-                stats.add_hessian(sample);
+                let param_eval = model.param_eval(&params, &vars);
+                stats.survey_param_eval(&param_eval);
                 if stats.ready_for_param_estimate() {
                     break stats;
                 }
