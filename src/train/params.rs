@@ -12,6 +12,7 @@ pub(crate) struct Params {
     pub(crate) sigmas: Vec<f64>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum ParamIndex {
     Mu,
     Tau,
@@ -21,9 +22,28 @@ pub(crate) enum ParamIndex {
 
 impl ParamIndex {
     pub(crate) fn all(n_traits: usize) -> impl Iterator<Item=ParamIndex> {
-        once(ParamIndex::Mu).chain(once(ParamIndex::Tau))
+        [ParamIndex::Mu, ParamIndex::Tau].into_iter()
             .chain((0..n_traits).map(ParamIndex::Beta))
             .chain((0..n_traits).map(ParamIndex::Sigma))
+    }
+    pub(crate) fn to(index_max: ParamIndex, n_traits: usize) -> Box<dyn Iterator<Item=ParamIndex>> {
+        match index_max {
+            ParamIndex::Mu => { Box::new(once(ParamIndex::Mu)) }
+            ParamIndex::Tau => { Box::new([ParamIndex::Mu, ParamIndex::Tau].into_iter()) }
+            ParamIndex::Beta(i_trait_max) => {
+                let iter =
+                    [ParamIndex::Mu, ParamIndex::Tau].into_iter()
+                        .chain((0..=i_trait_max).map(ParamIndex::Beta));
+                Box::new(iter)
+            }
+            ParamIndex::Sigma(i_trait_max) => {
+                let iter =
+                    [ParamIndex::Mu, ParamIndex::Tau].into_iter()
+                        .chain((0..n_traits).map(ParamIndex::Beta))
+                        .chain((0..=i_trait_max).map(ParamIndex::Sigma));
+                Box::new(iter)
+            }
+        }
     }
     pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 2 }
     pub(crate) fn from_ordinal(i_param: usize, n_traits: usize) -> Result<ParamIndex, Error> {
