@@ -42,7 +42,8 @@ impl<R: Rng> Sampler<R> {
                            i_data_point: &usize) -> f64 {
         let f_quot = model.f_quot_e(params, vars, i_data_point);
         let e_old = vars.es[*i_data_point];
-        let sigma_estimate = self.e_stats[*i_data_point].variance().unwrap_or(1.0);
+        let sigma_estimate =
+            self.e_stats[*i_data_point].variance().unwrap_or(params.tau);
         let draw = self.metro_hast.draw(f_quot, e_old, sigma_estimate);
         draw.x
     }
@@ -51,7 +52,8 @@ impl<R: Rng> Sampler<R> {
         let f_quot = model.f_quot_t(params, vars, i_data_point, i_trait);
         let t_old = vars.ts[*i_data_point][*i_trait];
         let sigma_estimate =
-            self.t_stats[*i_data_point][*i_trait].variance().unwrap_or(1.0);
+            self.t_stats[*i_data_point][*i_trait].variance()
+                .unwrap_or(params.sigmas[*i_trait]);
         let draw = self.metro_hast.draw(f_quot, t_old, sigma_estimate);
         draw.x
     }
