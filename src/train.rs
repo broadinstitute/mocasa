@@ -18,11 +18,13 @@ use crate::train::params::Params;
 use crate::train::worker::train_chain;
 
 pub(crate) enum MessageToWorker {
+    SendParamsAt(usize),
     Shutdown
 }
 
-pub(crate) enum MessageToCentral {
-
+pub(crate) struct MessageToCentral {
+    i_thread: usize,
+    params: Params
 }
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
