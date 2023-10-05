@@ -4,48 +4,62 @@ mod sampler;
 mod params;
 mod vars;
 mod param_eval;
+mod worker;
 
-use rand::prelude::ThreadRng;
-use rand::thread_rng;
+use std::cmp;
+use std::sync::Arc;
+use std::sync::mpsc::{channel, Sender};
+use std::thread::{available_parallelism, JoinHandle, spawn};
 use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::Config;
 use crate::train::model::TrainModel;
-use crate::train::param_stats::ParamHessianStats;
 use crate::train::params::Params;
-use crate::train::sampler::Sampler;
+use crate::train::worker::train_chain;
+
+pub(crate) enum MessageToWorker {
+    Shutdown
+}
+
+pub(crate) enum MessageToCentral {
+
+}
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_training_data(config)?;
     println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
     if !dry {
-        train(data)?;
+        train(data, config)?;
     }
     Ok(())
 }
 
-fn train(data: TrainData) -> Result<Params, Error> {
-    let meta = data.meta.clone();
-    let model = TrainModel::new(data);
-    let mut params = model.initial_params();
-    let mut vars = model.initial_vars(&params);
-    let rng = thread_rng();
-    let mut sampler = Sampler::<ThreadRng>::new(meta, rng);
-    loop {
-        let mut stats = ParamHessianStats::new(model.meta().n_traits());
-        let stats =
-            loop {
-                sampler.sample(&model, &params, &mut vars);
-                let param_eval = model.param_eval(&params, &vars);
-                stats.survey_param_eval(&param_eval);
-                if stats.ready_for_param_estimate() {
-                    break stats;
-                }
-            };
-        let estimate = stats.estimate_params();
-        params = estimate.params;
-        if estimate.is_done { break }
-    }
+fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
+    let model = Arc::new(TrainModel::new(data));
+    let n_threads = cmp::max(available_parallelism()?.get(), 3);
+    let (worker_sender, receiver) =
+        channel::<MessageToCentral>();
+    let (join_handles, senders) =
+        launch_workers(&model, worker_sender, n_threads);
+    let params = todo!();
     Ok(params)
+}
+
+fn launch_workers(model: &Arc<TrainModel>, worker_sender: Sender<MessageToCentral>,
+                  n_threads: usize) -> (Vec<JoinHandle<()>>, Vec<Sender<MessageToWorker>>) {
+    let mut join_handles: Vec<JoinHandle<()>> = Vec::with_capacity(n_threads);
+    let mut senders: Vec<Sender<MessageToWorker>> = Vec::with_capacity(n_threads);
+    for i_thread in 0..n_threads {
+        let model = model.clone();
+        let worker_sender = worker_sender.clone();
+        let (sender, worker_receiver) =
+            channel::<MessageToWorker>();
+        let join_handle = spawn(move || {
+            train_chain(model, worker_sender, worker_receiver, i_thread);
+        });
+        join_handles.push(join_handle);
+        senders.push(sender);
+    }
+    (join_handles, senders)
 }

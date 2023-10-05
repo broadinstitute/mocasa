@@ -10,7 +10,9 @@ pub(crate) struct Config {
 
 #[derive(Deserialize)]
 pub(crate) struct Train {
-    pub(crate) ids_file: String
+    pub(crate) ids_file: String,
+    pub(crate) n_steps_record: usize,
+    pub(crate) n_steps_burn_in: usize
 }
 
 #[derive(Deserialize)]
