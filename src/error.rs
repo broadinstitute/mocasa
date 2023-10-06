@@ -1,11 +1,15 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseFloatError;
+use std::sync::mpsc::{RecvTimeoutError, SendError};
+use crate::train::MessageToWorker;
 
 mod names {
     pub const MOCASA: &str = "Mocasa error";
     pub const IO: &str = "I/O error";
     pub const TOML_DE: &str = "TOML deserialization error";
     pub const PARSE_FLOAT: &str = "parse float error";
+    pub const SEND: &str = "send error";
+    pub const RECEIVE_TIMEOUT: &str = "receive timeout error";
 }
 
 pub enum ErrorKind {
@@ -13,6 +17,8 @@ pub enum ErrorKind {
     IOError,
     TomlDe,
     ParseFloat,
+    Send,
+    ReceiveTimeout,
 }
 
 pub struct Error {
@@ -53,6 +59,20 @@ impl From<ParseFloatError> for Error {
     }
 }
 
+impl From<SendError<MessageToWorker>> for Error {
+    fn from(send_error: SendError<MessageToWorker>) -> Self {
+        let message = send_error.to_string();
+        Error::new(ErrorKind::Send, message)
+    }
+}
+
+impl From<RecvTimeoutError> for Error {
+    fn from(receive_timeout_error: RecvTimeoutError) -> Self {
+        let message = receive_timeout_error.to_string();
+        Error::new(ErrorKind::ReceiveTimeout, message)
+    }
+}
+
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -60,6 +80,8 @@ impl ErrorKind {
             ErrorKind::IOError => { names::IO }
             ErrorKind::TomlDe => { names::TOML_DE }
             ErrorKind::ParseFloat => { names::PARSE_FLOAT }
+            ErrorKind::Send => { names::SEND }
+            ErrorKind::ReceiveTimeout => { names::RECEIVE_TIMEOUT }
         }
     }
 }

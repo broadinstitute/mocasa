@@ -25,7 +25,13 @@ impl<R: Rng> Sampler<R> {
         let metro_hast = MetroHast::new(rng);
         Sampler { e_stats, t_stats, metro_hast }
     }
-    pub(crate) fn sample(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars) {
+    pub(crate) fn sample_n(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars,
+                           n_steps: usize) {
+        for _ in 0..n_steps {
+            self.sample_one(model, params, vars)
+        }
+    }
+    pub(crate) fn sample_one(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars) {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point } => {

@@ -8,11 +8,6 @@ pub(crate) struct ParamHessianStats {
     hessian: SymMatrix<Stats>
 }
 
-pub(crate) struct ParamEstimate {
-    pub(crate) params: Params,
-    pub(crate) is_done: bool
-}
-
 impl ParamHessianStats {
     pub(crate) fn new(n_traits: usize) -> ParamHessianStats {
         let n_params = ParamIndex::n_params(n_traits);
@@ -32,5 +27,5 @@ impl ParamHessianStats {
         }
     }
     pub(crate) fn ready_for_param_estimate(&self) -> bool { todo!() }
-    pub(crate) fn estimate_params(&self) -> ParamEstimate { todo!() }
+    pub(crate) fn estimate_params(&self) -> Params { todo!() }
 }
