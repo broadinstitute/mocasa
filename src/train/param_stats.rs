@@ -26,6 +26,5 @@ impl ParamHessianStats {
             }
         }
     }
-    pub(crate) fn ready_for_param_estimate(&self) -> bool { todo!() }
     pub(crate) fn estimate_params(&self) -> Params { todo!() }
 }
