@@ -26,11 +26,11 @@ pub(crate) enum MessageToWorker {
 
 pub(crate) struct MessageToCentral {
     i_thread: usize,
-    params: Params,
+    params: Result<Params, Error>,
 }
 
 impl MessageToCentral {
-    pub(crate) fn new(i_thread: usize, params: Params) -> MessageToCentral {
+    pub(crate) fn new(i_thread: usize, params: Result<Params, Error>) -> MessageToCentral {
         MessageToCentral { i_thread, params }
     }
 }
@@ -57,7 +57,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         for sender in senders.iter() {
             sender.send(MessageToWorker::TakeNSamples(n_samples))?;
         }
-        let mut param_estimates: Vec<Option<Params>> = (0..n_threads).map(|_| None).collect();
+        let mut param_estimates: Vec<Option<Result<Params, Error>>> =
+            (0..n_threads).map(|_| None).collect();
         while param_estimates.iter().any(|param_opt| param_opt.is_none()) {
             let receive_result =
                 receiver.recv_timeout(Duration::from_secs(100));

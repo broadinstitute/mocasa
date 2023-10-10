@@ -78,6 +78,24 @@ impl ParamIndex {
     }
 }
 
+impl Params {
+    pub(crate) fn from_vec(values: &[f64], meta: &Arc<Meta>) -> Result<Params, Error> {
+        let n_traits = meta.n_traits();
+        let n_values_needed = ParamIndex::n_params(n_traits);
+        if values.len() != n_values_needed {
+            Err(Error::from(format!("Need {} values for {} traits, but got {}.",
+                                    n_values_needed, n_traits, values.len())))
+        } else {
+            let meta = meta.clone();
+            let mu = values[0];
+            let tau = values[1];
+            let betas: Vec<f64> = values[2..(2 + n_traits)].to_vec();
+            let sigmas: Vec<f64> = values[(2 + n_traits)..(2 + 2 * n_traits)].to_vec();
+            Ok(Params { meta, mu, tau, betas, sigmas })
+        }
+    }
+}
+
 impl Display for Params {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "mu = {}", self.mu)?;

@@ -21,7 +21,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, sender: Sender<MessageToCentra
         let in_message = receiver.recv().unwrap();
         match in_message {
             MessageToWorker::TakeNSamples(n_samples) => {
-                let mut stats = ParamHessianStats::new(model.meta().n_traits());
+                let mut stats = ParamHessianStats::new(model.meta().clone());
                 for _ in 0..n_samples {
                     sampler.sample_n(&model, &params, &mut vars, config.n_steps_per_sample);
                     let param_eval = model.param_eval(&params, &vars);
