@@ -19,3 +19,4 @@ ids_file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.cu
 n_steps_per_sample = 10
 n_steps_burn_in = 100
 n_samples_initial = 100
+precision = 0.001

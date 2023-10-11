@@ -19,5 +19,6 @@ ids_file = "/home/oliverr/phenet/training_var_list"
 n_steps_per_sample = 10
 n_steps_burn_in = 100
 n_samples_initial = 100
+precision = 0.001
 
 

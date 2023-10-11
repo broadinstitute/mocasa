@@ -31,7 +31,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, sender: Sender<MessageToCentra
                     .send(MessageToCentral::new(i_thread, stats.estimate_params()))
                     .unwrap();
             }
-            MessageToWorker::SetNewParams(_) => {}
+            MessageToWorker::SetNewParams(params_new) => { params = params_new }
             MessageToWorker::Shutdown => {
                 break
             }

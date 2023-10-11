@@ -36,8 +36,9 @@ impl ParamHessianStats {
     }
     pub(crate) fn estimate_params(&self) -> Result<Params, Error> {
         let n_traits = self.meta.n_traits();
+        let n_params = ParamIndex::n_params(n_traits);
         let coeffs =
-            Matrix::try_fill(n_traits, n_traits,
+            Matrix::try_fill(n_params, n_params,
                              |i_row, i_col| {
                                  self.hessian.index((i_row, i_col)).mean()
                                      .ok_or_else(|| Error::from("No sufficient stats"))

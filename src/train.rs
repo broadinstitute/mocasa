@@ -5,6 +5,7 @@ mod params;
 mod vars;
 mod param_eval;
 mod worker;
+mod param_meta_stats;
 
 use std::cmp;
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
 use crate::train::model::TrainModel;
+use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::worker::train_chain;
 
@@ -53,7 +55,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let (join_handles, senders) =
         launch_workers(&model, worker_sender, n_threads, &config.train);
     let mut n_samples: usize = config.train.n_samples_initial;
-    let params = loop {
+    let mut params = model.initial_params();
+    loop {
         for sender in senders.iter() {
             sender.send(MessageToWorker::TakeNSamples(n_samples))?;
         }
@@ -67,12 +70,33 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                     let MessageToCentral { i_thread, params } = message;
                     param_estimates[i_thread] = Some(params);
                 }
-                Err(RecvTimeoutError::Timeout) => { /* Just continue */ }
+                Err(RecvTimeoutError::Timeout) => {
+                    println!("Still waiting for worker threads.")
+                }
                 Err(RecvTimeoutError::Disconnected) => { receive_result?; }
             }
         }
-
-        todo!()
+        let mut meta_stats = ParamMetaStats::new(model.meta().clone());
+        for param_estimate in param_estimates {
+            match param_estimate {
+                None => { unreachable!() }
+                Some(Err(error)) => { println!("{}", error)}
+                Some(Ok(params)) => { meta_stats.add(params) }
+            }
+        }
+        let summary = meta_stats.summary(params)?;
+        params = summary.params;
+        if summary.intra_chains_mean < config.train.precision
+            && summary.intra_steps_mean < config.train.precision {
+            break
+        }
+        if summary.intra_chains_mean < summary.intra_steps_mean {
+            for sender in senders.iter() {
+                sender.send(MessageToWorker::SetNewParams(params.clone()))?;
+            }
+        } else {
+            n_samples += (n_samples / 10) + 1;
+        }
     };
     Ok(params)
 }

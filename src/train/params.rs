@@ -1,9 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::iter::once;
+use std::ops::Index;
 use std::sync::Arc;
 use crate::data::Meta;
 use crate::error::Error;
 
+#[derive(Clone)]
 pub(crate) struct Params {
     pub(crate) meta: Arc<Meta>,
     pub(crate) mu: f64,
@@ -92,6 +94,19 @@ impl Params {
             let betas: Vec<f64> = values[2..(2 + n_traits)].to_vec();
             let sigmas: Vec<f64> = values[(2 + n_traits)..(2 + 2 * n_traits)].to_vec();
             Ok(Params { meta, mu, tau, betas, sigmas })
+        }
+    }
+}
+
+impl Index<ParamIndex> for Params {
+    type Output = f64;
+
+    fn index(&self, index: ParamIndex) -> &Self::Output {
+        match index {
+            ParamIndex::Mu => { &self.mu }
+            ParamIndex::Tau => { &self.tau }
+            ParamIndex::Beta(i_trait) => { &self.betas[i_trait] }
+            ParamIndex::Sigma(i_trait) => { &self.sigmas[i_trait] }
         }
     }
 }

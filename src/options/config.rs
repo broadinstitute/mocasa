@@ -13,7 +13,8 @@ pub(crate) struct TrainConfig {
     pub(crate) ids_file: String,
     pub(crate) n_steps_per_sample: usize,
     pub(crate) n_steps_burn_in: usize,
-    pub(crate) n_samples_initial: usize
+    pub(crate) n_samples_initial: usize,
+    pub(crate) precision: f64
 }
 
 #[derive(Deserialize)]
