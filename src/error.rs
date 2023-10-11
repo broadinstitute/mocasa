@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseFloatError;
 use std::sync::mpsc::{RecvTimeoutError, SendError};
+use std::time::SystemTimeError;
 use crate::train::MessageToWorker;
 
 mod names {
@@ -10,6 +11,7 @@ mod names {
     pub const PARSE_FLOAT: &str = "parse float error";
     pub const SEND: &str = "send error";
     pub const RECEIVE_TIMEOUT: &str = "receive timeout error";
+    pub const SYSTEM_TIME: &str = "system time error";
 }
 
 pub enum ErrorKind {
@@ -19,6 +21,7 @@ pub enum ErrorKind {
     ParseFloat,
     Send,
     ReceiveTimeout,
+    SystemTime
 }
 
 pub struct Error {
@@ -73,6 +76,13 @@ impl From<RecvTimeoutError> for Error {
     }
 }
 
+impl From<SystemTimeError> for Error {
+    fn from(system_time_error: SystemTimeError) -> Self {
+        let message = system_time_error.to_string();
+        Error::new(ErrorKind::SystemTime, message)
+    }
+}
+
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -82,6 +92,7 @@ impl ErrorKind {
             ErrorKind::ParseFloat => { names::PARSE_FLOAT }
             ErrorKind::Send => { names::SEND }
             ErrorKind::ReceiveTimeout => { names::RECEIVE_TIMEOUT }
+            ErrorKind::SystemTime => { names::SYSTEM_TIME }
         }
     }
 }

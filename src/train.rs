@@ -11,7 +11,7 @@ use std::cmp;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, RecvTimeoutError, Sender};
 use std::thread::{available_parallelism, JoinHandle, spawn};
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
@@ -52,11 +52,17 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     let (worker_sender, receiver) =
         channel::<MessageToCentral>();
+    println!("Launching {} workers and burning in with {} iterations", n_threads,
+             config.train.n_steps_burn_in);
     let (join_handles, senders) =
         launch_workers(&model, worker_sender, n_threads, &config.train);
+    println!("Workers launched and burned in.");
     let mut n_samples: usize = config.train.n_samples_initial;
     let mut params = model.initial_params();
     loop {
+        println!("Asking workers to perform {} iterations.",
+                 n_samples * config.train.n_steps_per_sample);
+        let start_time = SystemTime::now();
         for sender in senders.iter() {
             sender.send(MessageToWorker::TakeNSamples(n_samples))?;
         }
@@ -76,27 +82,52 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                 Err(RecvTimeoutError::Disconnected) => { receive_result?; }
             }
         }
+        let n_iterations = config.train.n_steps_per_sample * n_samples;
+        let secs_elapsed = (start_time.elapsed()?.as_millis() as f64) / 1000.0;
+        let iterations_per_sec = (n_iterations as f64) / secs_elapsed;
+        println!("Completed {} iterations over all data points and variables in {} seconds, \
+        which is {} iterations per second and thread.",
+                 n_iterations, secs_elapsed, iterations_per_sec);
         let mut meta_stats = ParamMetaStats::new(model.meta().clone());
         for param_estimate in param_estimates {
             match param_estimate {
                 None => { unreachable!() }
-                Some(Err(error)) => { println!("{}", error)}
-                Some(Ok(params)) => { meta_stats.add(params) }
+                Some(Err(error)) => { println!("{}", error) }
+                Some(Ok(params)) => {
+                    let invalid_indices = params.invalid_indices();
+                    if invalid_indices.is_empty() {
+                        meta_stats.add(params)
+                    } else {
+                        for invalid_index in invalid_indices {
+                            println!("{} is {}, which is invalid", invalid_index,
+                                     params[invalid_index])
+                        }
+                    }
+                }
             }
         }
         let summary = meta_stats.summary(params)?;
-        params = summary.params;
-        if summary.intra_chains_mean < config.train.precision
-            && summary.intra_steps_mean < config.train.precision {
-            break
-        }
-        if summary.intra_chains_mean < summary.intra_steps_mean {
-            for sender in senders.iter() {
-                sender.send(MessageToWorker::SetNewParams(params.clone()))?;
-            }
-        } else {
-            n_samples += (n_samples / 10) + 1;
-        }
+        println!("{}", summary);
+        params =
+            if summary.n_chains_used >= 3 {
+                params = summary.params;
+                if summary.intra_chains_mean < config.train.precision
+                    && summary.intra_steps_mean < config.train.precision {
+                    println!("Complete!");
+                    break;
+                }
+                if summary.intra_chains_mean < summary.intra_steps_mean {
+                    println!("Setting new parameters");
+                    for sender in senders.iter() {
+                        sender.send(MessageToWorker::SetNewParams(params.clone()))?;
+                    }
+                } else {
+                    n_samples += (n_samples / 10) + 1;
+                }
+                params
+            } else {
+                summary.params_old
+            };
     };
     Ok(params)
 }

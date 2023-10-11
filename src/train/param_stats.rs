@@ -34,7 +34,7 @@ impl ParamHessianStats {
             }
         }
     }
-    pub(crate) fn estimate_params(&self) -> Result<Params, Error> {
+    pub(crate) fn estimate_params(&self, params: &Params) -> Result<Params, Error> {
         let n_traits = self.meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
         let coeffs =
@@ -46,9 +46,14 @@ impl ParamHessianStats {
         let sums: Vec<f64> =
             self.gradient.iter().map(
                 |stats|
-                    stats.mean().ok_or_else(|| Error::from("No sufficient stats"))
+                    stats.mean().map(|mean| -mean)
+                        .ok_or_else(|| Error::from("No sufficient stats"))
             ).collect::<Result<Vec<f64>, Error>>()?;
-        let solutions = solve_lin_eq(coeffs, sums)?;
-        Params::from_vec(&solutions, &self.meta)
+        let param_changes = solve_lin_eq(coeffs, sums)?;
+        let param_values_new =
+            ParamIndex::all(n_traits)
+                .map(|index| params[index] + param_changes[index.get_ordinal(n_traits)])
+                .collect::<Vec<f64>>();
+        Params::from_vec(&param_values_new, &self.meta)
     }
 }

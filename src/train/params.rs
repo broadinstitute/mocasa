@@ -78,6 +78,14 @@ impl ParamIndex {
             ParamIndex::Sigma(i_trait) => { i_trait + n_traits + 2 }
         }
     }
+    pub(crate) fn with_trait_name(&self, trait_names: &[String]) -> String {
+        match self {
+            ParamIndex::Mu => { "mu".to_string() }
+            ParamIndex::Tau => { "tau".to_string() }
+            ParamIndex::Beta(i_trait) => { format!("beta_{}", trait_names[*i_trait]) }
+            ParamIndex::Sigma(i_trait) => { format!("sigma_{}", trait_names[*i_trait]) }
+        }
+    }
 }
 
 impl Params {
@@ -95,6 +103,18 @@ impl Params {
             let sigmas: Vec<f64> = values[(2 + n_traits)..(2 + 2 * n_traits)].to_vec();
             Ok(Params { meta, mu, tau, betas, sigmas })
         }
+    }
+    pub(crate) fn invalid_indices(&self) -> Vec<ParamIndex> {
+        let mut invalid_indices: Vec<ParamIndex> = Vec::new();
+        if self.tau <= 0.0 {
+            invalid_indices.push(ParamIndex::Tau)
+        }
+        for (i_trait, sigma) in self.sigmas.iter().enumerate() {
+            if *sigma <= 0.0 {
+                invalid_indices.push(ParamIndex::Sigma(i_trait))
+            }
+        }
+        invalid_indices
     }
 }
 
@@ -121,5 +141,16 @@ impl Display for Params {
             writeln!(f, "sigma_{} = {}", name, sigma)?;
         }
         Ok(())
+    }
+}
+
+impl Display for ParamIndex {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParamIndex::Mu => { write!(f, "mu") }
+            ParamIndex::Tau => { write!(f, "tau") }
+            ParamIndex::Beta(i_trait) => { write!(f, "beta_{}", i_trait) }
+            ParamIndex::Sigma(i_trait) => { write!(f, "sigma_{}", i_trait) }
+        }
     }
 }

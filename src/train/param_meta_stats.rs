@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use crate::data::Meta;
 use crate::error::Error;
@@ -5,11 +6,14 @@ use crate::math::stats::Stats;
 use crate::train::params::{ParamIndex, Params};
 
 pub(crate) struct ParamMetaStats {
+    n_chains_used: usize,
     meta: Arc<Meta>,
     stats: Vec<Stats>
 }
 
 pub(crate) struct Summary {
+    pub(crate) meta: Arc<Meta>,
+    pub(crate) n_chains_used: usize,
     pub(crate) params: Params,
     pub(crate) params_old: Params,
     pub(crate) intra_chains: Vec<f64>,
@@ -24,9 +28,10 @@ fn unwrap_or_not_enough_data(value: Option<f64>) -> Result<f64, Error> {
 
 impl ParamMetaStats {
     pub(crate) fn new(meta: Arc<Meta>) -> ParamMetaStats {
+        let n_chains_used: usize = 0;
         let n_params = ParamIndex::n_params(meta.n_traits());
         let stats =  vec![Stats::new(); n_params];
-        ParamMetaStats { meta, stats }
+        ParamMetaStats { n_chains_used, meta, stats }
     }
     pub(crate) fn add(&mut self, params: Params) {
         let n_traits = self.meta.n_traits();
@@ -35,6 +40,7 @@ impl ParamMetaStats {
         }
     }
     pub(crate) fn summary(&self, params_old: Params) -> Result<Summary, Error> {
+        let meta = self.meta.clone();
         let n_traits = self.meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
         let mut values: Vec<f64> = Vec::with_capacity(n_params);
@@ -50,11 +56,27 @@ impl ParamMetaStats {
             intra_chains.push(std_dev / mean.abs());
             intra_steps.push((params_old[index] - mean).abs() /  mean.abs());
         }
+        let n_chains_used = self.n_chains_used;
         let params = Params::from_vec(&values, &self.meta)?;
         let intra_chains_mean = intra_chains.iter().sum::<f64>() / (n_traits as f64);
         let intra_steps_mean = intra_steps.iter().sum::<f64>() / (n_traits as f64);
         Ok(Summary {
-            params, params_old, intra_chains, intra_steps, intra_chains_mean, intra_steps_mean
+            meta, n_chains_used, params, params_old, intra_chains, intra_steps, intra_chains_mean,
+            intra_steps_mean
         })
+    }
+}
+
+impl Display for Summary {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let n_traits = self.meta.n_traits();
+        writeln!(f, "Chains used: {}", self.n_chains_used)?;
+        writeln!(f, "param\tvalue\tvalue_old\tintra_chains\tintra_steps")?;
+        for (i, index) in ParamIndex::all(n_traits).enumerate() {
+            writeln!(f, "{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
+                     self.params[index], self.params_old[index], self.intra_chains[i],
+                     self.intra_steps[i])?
+        }
+        Ok(())
     }
 }
