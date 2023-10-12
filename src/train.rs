@@ -129,6 +129,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                 summary.params_old
             };
     };
+    shutdown_workers(join_handles, &senders);
     Ok(params)
 }
 
@@ -150,4 +151,19 @@ fn launch_workers(model: &Arc<TrainModel>, worker_sender: Sender<MessageToCentra
         senders.push(sender);
     }
     (join_handles, senders)
+}
+
+fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<MessageToWorker>]) {
+    for (i, sender) in senders.iter().enumerate() {
+        match sender.send(MessageToWorker::Shutdown) {
+            Ok(_) => { println!("Worker {} requested to shut down.", i)}
+            Err(_) => { println!("Could not reach worker {}.", i) }
+        };
+    }
+    for (i, join_handle) in join_handles.into_iter().enumerate() {
+        match join_handle.join() {
+            Ok(_) => { println!("Worker {} shutdown.", i) }
+            Err(_) => { println!("Worker {} crashed.", i) }
+        }
+    }
 }
