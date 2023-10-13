@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 use crate::error::Error;
 
+#[derive(Clone)]
 pub(crate) struct Matrix {
     pub(crate) n_rows: usize,
     pub(crate) n_cols: usize,
@@ -8,7 +9,8 @@ pub(crate) struct Matrix {
 }
 
 impl Matrix {
-    pub(crate) fn fill<F: Fn(usize, usize) -> f64>(n_rows: usize, n_cols: usize, f: F) -> Matrix {
+    pub(crate) fn fill<F: FnMut(usize, usize) -> f64>(n_rows: usize, n_cols: usize, mut f: F)
+                                                      -> Matrix {
         let n = n_rows * n_cols;
         let elements = {
             let mut elements: Vec<f64> = Vec::with_capacity(n);
@@ -21,9 +23,9 @@ impl Matrix {
         };
         Matrix { n_rows, n_cols, elements }
     }
-    pub(crate) fn try_fill<F: Fn(usize, usize) -> Result<f64, Error>>(n_rows: usize,
-                                                                      n_cols: usize, f: F)
-        -> Result<Matrix, Error> {
+    pub(crate) fn try_fill<F: FnMut(usize, usize) -> Result<f64, Error>>(n_rows: usize,
+                                                                         n_cols: usize, mut f: F)
+                                                                         -> Result<Matrix, Error> {
         let n = n_rows * n_cols;
         let elements = {
             let mut elements: Vec<f64> = Vec::with_capacity(n);
