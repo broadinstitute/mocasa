@@ -6,6 +6,7 @@ mod vars;
 mod param_eval;
 mod worker;
 mod param_meta_stats;
+mod var_trace;
 
 use std::cmp;
 use std::sync::Arc;

@@ -21,7 +21,9 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, sender: Sender<MessageToCentra
         let in_message = receiver.recv().unwrap();
         match in_message {
             MessageToWorker::TakeNSamples(n_samples) => {
+                sampler.reset_stats();
                 sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
+                sampler.reset_stats();
                 for _ in 0..n_samples {
                     sampler.sample_n(&model, &params, &mut vars, config.n_steps_per_sample);
                     let param_eval = model.param_eval(&params, &vars);

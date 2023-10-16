@@ -38,4 +38,9 @@ impl Stats {
             Some(self.var_sum / (self.n as f64))
         }
     }
+    pub(crate) fn reset(&mut self) {
+        self.n = 0;
+        self.sum =  0.0;
+        self.var_sum = 0.0;
+    }
 }

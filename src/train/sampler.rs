@@ -8,6 +8,7 @@ use crate::train::params::Params;
 use crate::train::vars::{VarIndex, Vars};
 
 pub(crate) struct Sampler<R: Rng> {
+    meta: Arc<Meta>,
     metro_hast: MetroHast<R>,
     e_stats: Vec<Stats>,
     t_stats: Vec<Vec<Stats>>,
@@ -17,13 +18,10 @@ impl<R: Rng> Sampler<R> {
     pub(crate) fn new(meta: Arc<Meta>, rng: R) -> Sampler<R> {
         let n_data_points = meta.n_data_points();
         let n_traits = meta.n_traits();
-        let e_stats: Vec<Stats> = (0..n_data_points).map(|_| Stats::new()).collect();
-        let t_stats: Vec<Vec<Stats>> =
-            (0..n_data_points).map(|_| {
-                (0..n_traits).map(|_| Stats::new()).collect()
-            }).collect();
+        let e_stats: Vec<Stats> = e_stats_new(n_data_points);
+        let t_stats: Vec<Vec<Stats>> = t_stats_new(n_data_points, n_traits);
         let metro_hast = MetroHast::new(rng);
-        Sampler { e_stats, t_stats, metro_hast }
+        Sampler { meta, e_stats, t_stats, metro_hast }
     }
     pub(crate) fn sample_n(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars,
                            n_steps: usize) {
@@ -49,8 +47,13 @@ impl<R: Rng> Sampler<R> {
         let f_quot = model.f_quot_e(params, vars, i_data_point);
         let e_old = vars.es[*i_data_point];
         let sigma_estimate =
-            self.e_stats[*i_data_point].variance().unwrap_or(params.tau);
+            self.e_stats[*i_data_point].variance().map(|var| var.sqrt())
+                .unwrap_or(params.tau);
         let draw = self.metro_hast.draw(f_quot, e_old, sigma_estimate);
+        if draw.attempts_minus + draw.attempts_plus > 100 {
+            println!("Needed {} + {} attempts to sample E_{}.",
+                     draw.attempts_minus, draw.attempts_plus, i_data_point)
+        }
         draw.x
     }
     pub(crate) fn sample_t(&mut self, model: &TrainModel, params: &Params, vars: &Vars,
@@ -58,9 +61,27 @@ impl<R: Rng> Sampler<R> {
         let f_quot = model.f_quot_t(params, vars, i_data_point, i_trait);
         let t_old = vars.ts[*i_data_point][*i_trait];
         let sigma_estimate =
-            self.t_stats[*i_data_point][*i_trait].variance()
+            self.t_stats[*i_data_point][*i_trait].variance().map(|var| var.sqrt())
                 .unwrap_or(params.sigmas[*i_trait]);
         let draw = self.metro_hast.draw(f_quot, t_old, sigma_estimate);
+        if draw.attempts_minus + draw.attempts_plus > 100000 {
+            println!("Needed {} + {} attempts to sample T_{}_{}",
+                     draw.attempts_minus, draw.attempts_plus, i_data_point, i_trait)
+        }
         draw.x
     }
+    pub(crate) fn reset_stats(&mut self) {
+        let n_data_points = self.meta.n_data_points();
+        let n_traits = self.meta.n_traits();
+        self.e_stats = e_stats_new(n_data_points);
+        self.t_stats = t_stats_new(n_data_points, n_traits);
+    }
+}
+
+fn e_stats_new(n_data_points: usize) -> Vec<Stats> {
+    (0..n_data_points).map(|_| Stats::new()).collect()
+}
+
+fn t_stats_new(n_data_points: usize, n_traits: usize) -> Vec<Vec<Stats>> {
+    (0..n_data_points).map(|_| { (0..n_traits).map(|_| Stats::new()).collect() }).collect()
 }
