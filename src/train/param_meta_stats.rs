@@ -40,7 +40,7 @@ impl ParamMetaStats {
             self.stats[i.get_ordinal(n_traits)].add(params[i])
         }
     }
-    pub(crate) fn summary(&self, params_old: Params) -> Result<Summary, Error> {
+    pub(crate) fn summary(&self, params_old: &Params) -> Result<Summary, Error> {
         let meta = self.meta.clone();
         let n_traits = self.meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
@@ -62,6 +62,7 @@ impl ParamMetaStats {
         let params = Params::from_vec(&values, &self.meta)?;
         let intra_chains_mean = intra_chains.iter().sum::<f64>() / (n_traits as f64);
         let intra_steps_mean = intra_steps.iter().sum::<f64>() / (n_traits as f64);
+        let params_old = params_old.clone();
         Ok(Summary {
             meta,
             n_chains_used,

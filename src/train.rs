@@ -20,6 +20,7 @@ use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::worker::train_chain;
+use crate::util::duration_format::format_duration;
 
 pub(crate) enum MessageToWorker {
     TakeNSamples(usize),
@@ -58,12 +59,14 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let (join_handles, senders) =
         launch_workers(&model, worker_sender, n_threads, &config.train);
     println!("Workers launched and burned in.");
-    let mut n_samples: usize = config.train.n_samples_initial;
+    let n_samples: usize = config.train.n_samples_per_round;
     let mut params = model.initial_params();
+    let mut params_old = params.clone();
+    let start_time = SystemTime::now();
     loop {
         println!("Asking workers to perform {} iterations.",
                  n_samples * config.train.n_steps_per_sample);
-        let start_time = SystemTime::now();
+        let start_time_round = SystemTime::now();
         for sender in senders.iter() {
             sender.send(MessageToWorker::TakeNSamples(n_samples))?;
         }
@@ -84,11 +87,13 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             }
         }
         let n_iterations = config.train.n_steps_per_sample * n_samples;
-        let secs_elapsed = (start_time.elapsed()?.as_millis() as f64) / 1000.0;
+        let secs_elapsed = (start_time_round.elapsed()?.as_millis() as f64) / 1000.0;
+        let elapsed_round = format_duration(start_time_round.elapsed()?);
+        let elapsed_total = format_duration(start_time.elapsed()?);
         let iterations_per_sec = (n_iterations as f64) / secs_elapsed;
-        println!("Completed {} iterations over all data points and variables in {} seconds, \
-        which is {} iterations per second and thread.",
-                 n_iterations, secs_elapsed, iterations_per_sec);
+        println!("Completed {} iterations over all data points and variables in {}, \
+        which is {} iterations per second and thread. Total time is {}",
+                 n_iterations, elapsed_round, iterations_per_sec, elapsed_total);
         let mut meta_stats = ParamMetaStats::new(model.meta().clone());
         for param_estimate in param_estimates {
             match param_estimate {
@@ -97,38 +102,38 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                 Some(Ok(params)) => {
                     let invalid_indices = params.invalid_indices();
                     if invalid_indices.is_empty() {
-                        meta_stats.add(params)
-                    } else {
                         for invalid_index in invalid_indices {
                             println!("{} is {}, which is invalid", invalid_index,
                                      params[invalid_index])
                         }
                     }
+                    meta_stats.add(params);
                 }
             }
         }
-        let summary = meta_stats.summary(params)?;
-        println!("{}", summary);
-        params =
-            if summary.n_chains_used >= 3 {
-                params = summary.params;
-                if summary.intra_chains_mean < config.train.precision
-                    && summary.intra_steps_mean < config.train.precision {
-                    println!("Complete!");
-                    break;
-                }
-                if summary.intra_chains_mean < summary.intra_steps_mean {
-                    println!("Setting new parameters");
-                    for sender in senders.iter() {
-                        sender.send(MessageToWorker::SetNewParams(params.clone()))?;
+        match meta_stats.summary(&params_old) {
+            Ok(summary) => {
+                println!("{}", summary);
+                if summary.n_chains_used >= 3 {
+                    params = summary.params;
+                    if summary.intra_chains_mean < config.train.precision
+                        && summary.intra_steps_mean < config.train.precision {
+                        println!("Complete!");
+                        break;
                     }
-                } else {
-                    n_samples += (n_samples / 10) + 1;
-                }
-                params
-            } else {
-                summary.params_old
-            };
+                    if summary.intra_chains_mean < summary.intra_steps_mean {
+                        println!("Setting new parameters");
+                        for sender in senders.iter() {
+                            sender.send(MessageToWorker::SetNewParams(params.clone()))?;
+                        }
+                        params_old = params.clone();
+                    }
+                };
+            }
+            Err(_) => {
+                println!("Data is not ready, yet.")
+            }
+        }
     };
     shutdown_workers(join_handles, &senders);
     Ok(params)
@@ -157,7 +162,7 @@ fn launch_workers(model: &Arc<TrainModel>, worker_sender: Sender<MessageToCentra
 fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<MessageToWorker>]) {
     for (i, sender) in senders.iter().enumerate() {
         match sender.send(MessageToWorker::Shutdown) {
-            Ok(_) => { println!("Worker {} requested to shut down.", i)}
+            Ok(_) => { println!("Worker {} requested to shut down.", i) }
             Err(_) => { println!("Could not reach worker {}.", i) }
         };
     }

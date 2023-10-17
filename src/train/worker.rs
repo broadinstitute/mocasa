@@ -15,7 +15,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, sender: Sender<MessageToCentra
     let mut vars = model.initial_vars(&params);
     let rng = thread_rng();
     let meta = model.meta().clone();
-    let mut sampler = Sampler::<ThreadRng>::new(meta, rng);
+    let mut sampler = Sampler::<ThreadRng>::new(meta, rng, &params);
     let mut stats = ParamHessianStats::new(model.meta().clone());
     loop {
         let in_message = receiver.recv().unwrap();

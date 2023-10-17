@@ -13,13 +13,13 @@ pub(crate) struct Draw {
 
 impl<R: Rng> MetroHast<R> {
     pub(crate) fn new(rng: R) -> MetroHast<R> { MetroHast { rng } }
-    pub(crate) fn draw<F: Fn(f64, f64) -> f64>(&mut self, f_quot: F, x_old: f64, sigma: f64)
+    pub(crate) fn draw<F: Fn(f64, f64) -> f64>(&mut self, f_quot: F, x_old: f64, std_dev: f64)
                                                -> Draw {
         let mut attempts_minus: usize = 0;
         let mut attempts_plus: usize = 0;
         let x =
             loop {
-                let x_diff = self.rng.gen_range(-sigma..sigma);
+                let x_diff = self.rng.gen_range(-std_dev..std_dev);
                 match x_diff.total_cmp(&0.0) {
                     Ordering::Less => { attempts_minus += 1 }
                     Ordering::Equal => { /* do nothing */ }

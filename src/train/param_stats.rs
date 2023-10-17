@@ -46,13 +46,14 @@ impl ParamHessianStats {
         let sums: Vec<f64> =
             self.gradient.iter().map(
                 |stats|
-                    stats.mean().map(|mean| -mean)
-                        .ok_or_else(|| Error::from("No sufficient stats"))
+                    stats.mean().ok_or_else(|| Error::from("No sufficient stats"))
             ).collect::<Result<Vec<f64>, Error>>()?;
         let param_changes = solve_lin_eq(coeffs, sums)?;
         let param_values_new =
             ParamIndex::all(n_traits)
-                .map(|index| params[index] + param_changes[index.get_ordinal(n_traits)])
+                .map(|index| {
+                    params[index] + 0.1 * param_changes[index.get_ordinal(n_traits)]
+                })
                 .collect::<Vec<f64>>();
         Params::from_vec(&param_values_new, &self.meta)
     }
