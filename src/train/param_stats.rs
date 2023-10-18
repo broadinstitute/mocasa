@@ -52,7 +52,7 @@ impl ParamHessianStats {
         let param_values_new =
             ParamIndex::all(n_traits)
                 .map(|index| {
-                    params[index] + 0.1 * param_changes[index.get_ordinal(n_traits)]
+                    params[index] - param_changes[index.get_ordinal(n_traits)]
                 })
                 .collect::<Vec<f64>>();
         Params::from_vec(&param_values_new, &self.meta)

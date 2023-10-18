@@ -115,14 +115,16 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             Ok(summary) => {
                 println!("{}", summary);
                 if summary.n_chains_used >= 3 {
-                    params = summary.params;
                     if summary.intra_chains_mean < config.train.precision
                         && summary.intra_steps_mean < config.train.precision {
+                        params = summary.params;
                         println!("Complete!");
                         break;
                     }
-                    if summary.intra_chains_mean < summary.intra_steps_mean {
+                    if summary.intra_chains_mean < 0.01 &&
+                        summary.intra_chains_mean < summary.intra_steps_mean {
                         println!("Setting new parameters");
+                        params = summary.params;
                         for sender in senders.iter() {
                             sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                         }
