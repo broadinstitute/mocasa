@@ -5,11 +5,12 @@ use std::sync::Arc;
 use crate::data::Meta;
 use crate::error::Error;
 
+pub(crate) const TAU: f64 = 1.0;
+
 #[derive(Clone)]
 pub(crate) struct Params {
     pub(crate) meta: Arc<Meta>,
     pub(crate) mu: f64,
-    pub(crate) tau: f64,
     pub(crate) betas: Vec<f64>,
     pub(crate) sigmas: Vec<f64>,
 }
@@ -17,43 +18,40 @@ pub(crate) struct Params {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum ParamIndex {
     Mu,
-    Tau,
     Beta(usize),
     Sigma(usize),
 }
 
 impl ParamIndex {
     pub(crate) fn all(n_traits: usize) -> impl Iterator<Item=ParamIndex> {
-        [ParamIndex::Mu, ParamIndex::Tau].into_iter()
+        once(ParamIndex::Mu)
             .chain((0..n_traits).map(ParamIndex::Beta))
             .chain((0..n_traits).map(ParamIndex::Sigma))
     }
     pub(crate) fn to(index_max: ParamIndex, n_traits: usize) -> Box<dyn Iterator<Item=ParamIndex>> {
         match index_max {
             ParamIndex::Mu => { Box::new(once(ParamIndex::Mu)) }
-            ParamIndex::Tau => { Box::new([ParamIndex::Mu, ParamIndex::Tau].into_iter()) }
             ParamIndex::Beta(i_trait_max) => {
                 let iter =
-                    [ParamIndex::Mu, ParamIndex::Tau].into_iter()
+                    once(ParamIndex::Mu)
                         .chain((0..=i_trait_max).map(ParamIndex::Beta));
                 Box::new(iter)
             }
             ParamIndex::Sigma(i_trait_max) => {
                 let iter =
-                    [ParamIndex::Mu, ParamIndex::Tau].into_iter()
+                    once(ParamIndex::Mu)
                         .chain((0..n_traits).map(ParamIndex::Beta))
                         .chain((0..=i_trait_max).map(ParamIndex::Sigma));
                 Box::new(iter)
             }
         }
     }
-    pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 2 }
+    pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 1 }
     pub(crate) fn from_ordinal(i_param: usize, n_traits: usize) -> Result<ParamIndex, Error> {
         match i_param {
             0 => { Ok(ParamIndex::Mu) }
-            1 => { Ok(ParamIndex::Tau) }
             _ => {
-                let i_trait = i_param - 2;
+                let i_trait = i_param - 1;
                 if i_trait < n_traits {
                     Ok(ParamIndex::Beta(i_trait))
                 } else {
@@ -73,15 +71,13 @@ impl ParamIndex {
     pub(crate) fn get_ordinal(&self, n_traits: usize) -> usize {
         match self {
             ParamIndex::Mu => { 0 }
-            ParamIndex::Tau => { 1 }
-            ParamIndex::Beta(i_trait) => { i_trait + 2 }
-            ParamIndex::Sigma(i_trait) => { i_trait + n_traits + 2 }
+            ParamIndex::Beta(i_trait) => { i_trait + 1 }
+            ParamIndex::Sigma(i_trait) => { i_trait + n_traits + 1 }
         }
     }
     pub(crate) fn with_trait_name(&self, trait_names: &[String]) -> String {
         match self {
             ParamIndex::Mu => { "mu".to_string() }
-            ParamIndex::Tau => { "tau".to_string() }
             ParamIndex::Beta(i_trait) => { format!("beta_{}", trait_names[*i_trait]) }
             ParamIndex::Sigma(i_trait) => { format!("sigma_{}", trait_names[*i_trait]) }
         }
@@ -98,17 +94,13 @@ impl Params {
         } else {
             let meta = meta.clone();
             let mu = values[0];
-            let tau = values[1];
-            let betas: Vec<f64> = values[2..(2 + n_traits)].to_vec();
-            let sigmas: Vec<f64> = values[(2 + n_traits)..(2 + 2 * n_traits)].to_vec();
-            Ok(Params { meta, mu, tau, betas, sigmas })
+            let betas: Vec<f64> = values[1..(2 + n_traits)].to_vec();
+            let sigmas: Vec<f64> = values[(1 + n_traits)..(1 + 2 * n_traits)].to_vec();
+            Ok(Params { meta, mu, betas, sigmas })
         }
     }
     pub(crate) fn invalid_indices(&self) -> Vec<ParamIndex> {
         let mut invalid_indices: Vec<ParamIndex> = Vec::new();
-        if self.tau <= 0.0 {
-            invalid_indices.push(ParamIndex::Tau)
-        }
         for (i_trait, sigma) in self.sigmas.iter().enumerate() {
             if *sigma <= 0.0 {
                 invalid_indices.push(ParamIndex::Sigma(i_trait))
@@ -124,7 +116,6 @@ impl Index<ParamIndex> for Params {
     fn index(&self, index: ParamIndex) -> &Self::Output {
         match index {
             ParamIndex::Mu => { &self.mu }
-            ParamIndex::Tau => { &self.tau }
             ParamIndex::Beta(i_trait) => { &self.betas[i_trait] }
             ParamIndex::Sigma(i_trait) => { &self.sigmas[i_trait] }
         }
@@ -134,7 +125,6 @@ impl Index<ParamIndex> for Params {
 impl Display for Params {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "mu = {}", self.mu)?;
-        writeln!(f, "tau = {}", self.tau)?;
         for ((name, beta), sigma) in self.meta.trait_names.iter()
             .zip(self.betas.iter()).zip(self.sigmas.iter()) {
             writeln!(f, "beta_{} = {}", name, beta)?;
@@ -148,7 +138,6 @@ impl Display for ParamIndex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             ParamIndex::Mu => { write!(f, "mu") }
-            ParamIndex::Tau => { write!(f, "tau") }
             ParamIndex::Beta(i_trait) => { write!(f, "beta_{}", i_trait) }
             ParamIndex::Sigma(i_trait) => { write!(f, "sigma_{}", i_trait) }
         }

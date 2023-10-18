@@ -3,6 +3,7 @@ use rand::Rng;
 use crate::data::Meta;
 use crate::mcmc::metro::MetroHast;
 use crate::train::model::TrainModel;
+use crate::train::params;
 use crate::train::params::Params;
 use crate::train::var_trace::VarTracer;
 use crate::train::vars::{VarIndex, Vars};
@@ -19,7 +20,7 @@ impl<R: Rng> Sampler<R> {
         let n_data_points = meta.n_data_points();
         let n_traits = meta.n_traits();
         let e_stats =
-            e_stats_new(n_data_points, params.mu, params.tau);
+            e_stats_new(n_data_points, params.mu, params::TAU);
         let t_stats =
             t_stats_new(n_data_points, n_traits, &params.betas,
                         &params.sigmas);

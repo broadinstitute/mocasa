@@ -124,7 +124,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                         println!("Complete!");
                         break;
                     }
-                    if summary.intra_chains_mean < 0.015 &&
+                    if summary.intra_chains_mean < 0.01 &&
                         summary.intra_chains_mean < summary.intra_steps_mean {
                         println!("Setting new parameters");
                         params = summary.params;

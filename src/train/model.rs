@@ -2,6 +2,7 @@ use std::sync::Arc;
 use crate::data::{Meta, TrainData};
 use crate::math::matrix::Matrix;
 use crate::train::param_eval::ParamEval;
+use crate::train::params;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 
@@ -14,14 +15,6 @@ impl TrainModel {
         TrainModel { data }
     }
     pub(crate) fn meta(&self) -> &Arc<Meta> { &self.data.meta }
-    pub(crate) fn initial_params(&self) -> Params {
-        let meta = self.data.meta.clone();
-        let mu = 0.0;
-        let tau = 1.0;
-        let betas = vec![1.0; self.data.n_traits()];
-        let sigmas = vec![1.0; self.data.n_traits()];
-        Params { meta, mu, tau, betas, sigmas }
-    }
     pub(crate) fn initial_vars(&self, params: &Params) -> Vars {
         let meta = self.data.meta.clone();
         let es = vec![params.mu; self.data.n_data_points()];
@@ -37,7 +30,7 @@ impl TrainModel {
                                -> impl Fn(f64, f64) -> f64 + 'a {
         |e_new: f64, e_old: f64| {
             let mu = params.mu;
-            let tau = params.tau;
+            let tau = params::TAU;
             let e_term =
                 ((e_new - mu).powi(2) - (e_old - mu).powi(2)) / tau.powi(2);
             let ts = &vars.ts[*i_data_point];
