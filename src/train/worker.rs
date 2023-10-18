@@ -6,12 +6,12 @@ use crate::options::config::TrainConfig;
 use crate::train::{MessageToCentral, MessageToWorker};
 use crate::train::model::TrainModel;
 use crate::train::param_stats::ParamHessianStats;
+use crate::train::params::Params;
 use crate::train::sampler::Sampler;
 
-pub(crate) fn train_chain(model: Arc<TrainModel>, sender: Sender<MessageToCentral>,
-                          receiver: Receiver<MessageToWorker>, i_thread: usize,
-                          config: &TrainConfig) {
-    let mut params = model.initial_params();
+pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
+                          sender: Sender<MessageToCentral>, receiver: Receiver<MessageToWorker>,
+                          i_thread: usize, config: &TrainConfig) {
     let mut vars = model.initial_vars(&params);
     let rng = thread_rng();
     let meta = model.meta().clone();

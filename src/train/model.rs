@@ -6,7 +6,7 @@ use crate::train::params::Params;
 use crate::train::vars::Vars;
 
 pub(crate) struct TrainModel {
-    data: TrainData,
+    pub(crate) data: TrainData,
 }
 
 impl TrainModel {

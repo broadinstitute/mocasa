@@ -7,6 +7,7 @@ mod param_eval;
 mod worker;
 mod param_meta_stats;
 mod var_trace;
+mod initial_params;
 
 use std::cmp;
 use std::sync::Arc;
@@ -16,6 +17,7 @@ use std::time::{Duration, SystemTime};
 use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
+use crate::train::initial_params::estimate_initial_params;
 use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
@@ -56,11 +58,12 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         channel::<MessageToCentral>();
     println!("Launching {} workers and burning in with {} iterations", n_threads,
              config.train.n_steps_burn_in);
+    let mut params = estimate_initial_params(&model)?;
+    println!("{}", params);
     let (join_handles, senders) =
-        launch_workers(&model, worker_sender, n_threads, &config.train);
+        launch_workers(&model, &params, worker_sender, n_threads, &config.train);
     println!("Workers launched and burned in.");
     let n_samples: usize = config.train.n_samples_per_round;
-    let mut params = model.initial_params();
     let mut params_old = params.clone();
     let start_time = SystemTime::now();
     loop {
@@ -121,7 +124,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                         println!("Complete!");
                         break;
                     }
-                    if summary.intra_chains_mean < 0.01 &&
+                    if summary.intra_chains_mean < 0.015 &&
                         summary.intra_chains_mean < summary.intra_steps_mean {
                         println!("Setting new parameters");
                         params = summary.params;
@@ -141,8 +144,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     Ok(params)
 }
 
-fn launch_workers(model: &Arc<TrainModel>, worker_sender: Sender<MessageToCentral>,
-                  n_threads: usize, config: &TrainConfig)
+fn launch_workers(model: &Arc<TrainModel>, params: &Params,
+                  worker_sender: Sender<MessageToCentral>, n_threads: usize, config: &TrainConfig)
                   -> (Vec<JoinHandle<()>>, Vec<Sender<MessageToWorker>>) {
     let mut join_handles: Vec<JoinHandle<()>> = Vec::with_capacity(n_threads);
     let mut senders: Vec<Sender<MessageToWorker>> = Vec::with_capacity(n_threads);
@@ -152,8 +155,10 @@ fn launch_workers(model: &Arc<TrainModel>, worker_sender: Sender<MessageToCentra
         let (sender, worker_receiver) =
             channel::<MessageToWorker>();
         let config = config.clone();
+        let params = params.clone();
         let join_handle = spawn(move || {
-            train_chain(model, worker_sender, worker_receiver, i_thread, &config);
+            train_chain(model, params, worker_sender, worker_receiver, i_thread,
+                        &config);
         });
         join_handles.push(join_handle);
         senders.push(sender);
