@@ -22,7 +22,7 @@ pub(crate) fn format_duration(duration: Duration) -> String {
                     } else {
                         let mins = secs / 60;
                         if mins < 60 {
-                            format!("{}m{}.{:0>3}s", mins, secs % 60, millis % 1000)
+                            format!("{}m{}s", mins, secs % 60)
                         } else {
                             let hours = mins / 60;
                             if hours < 24 {

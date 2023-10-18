@@ -188,5 +188,6 @@ fn set_params_condition(summary: &Summary, precision: f64) -> bool {
     summary.intra_chains.iter().zip(summary.intra_steps.iter())
         .all(|(intra_chain, intra_step)|
             *intra_chain < 1.0 && *intra_chain < *intra_step
-        ) || summary.intra_chains_mean < precision
+        ) || summary.intra_chains_mean < 0.5 * summary.intra_steps_mean
+        || summary.intra_chains_mean < precision
 }
