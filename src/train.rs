@@ -19,7 +19,7 @@ use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::model::TrainModel;
-use crate::train::param_meta_stats::ParamMetaStats;
+use crate::train::param_meta_stats::{ParamMetaStats, Summary};
 use crate::train::params::Params;
 use crate::train::worker::train_chain;
 use crate::util::duration_format::format_duration;
@@ -118,14 +118,12 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             Ok(summary) => {
                 println!("{}", summary);
                 if summary.n_chains_used >= 3 {
-                    if summary.intra_chains_mean < config.train.precision
-                        && summary.intra_steps_mean < config.train.precision {
+                    if finished_condition(&summary, config.train.precision) {
                         params = summary.params;
                         println!("Complete!");
                         break;
                     }
-                    if summary.intra_chains_mean < 0.01 &&
-                        summary.intra_chains_mean < summary.intra_steps_mean {
+                    if set_params_condition(&summary, config.train.precision) {
                         println!("Setting new parameters");
                         params = summary.params;
                         for sender in senders.iter() {
@@ -179,4 +177,16 @@ fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<Message
             Err(_) => { println!("Worker {} crashed.", i) }
         }
     }
+}
+
+fn finished_condition(summary: &Summary, precision: f64) -> bool {
+    summary.intra_chains.iter().all(|rel_err| *rel_err < precision) &&
+        summary.intra_steps.iter().all(|rel_err| *rel_err < precision)
+}
+
+fn set_params_condition(summary: &Summary, precision: f64) -> bool {
+    summary.intra_chains.iter().zip(summary.intra_steps.iter())
+        .all(|(intra_chain, intra_step)|
+            *intra_chain < 1.0 && *intra_chain < *intra_step
+        ) || summary.intra_chains_mean < precision
 }
