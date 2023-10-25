@@ -30,6 +30,9 @@ impl WootzStats {
             }
         }
     }
+    pub(crate) fn n(&self) -> usize { self.stats.n }
+    pub(crate) fn mean(&self) -> f64 { self.stats.mean() }
+    pub(crate) fn variance(&self) -> f64 { self.stats.variance() }
     fn should_truncate(&self) -> bool {
         let mean = self.stats.mean();
         let dist0 = (self.snapshots[0].mean() - mean).abs();

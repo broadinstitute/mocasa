@@ -1,34 +1,34 @@
-use crate::math::stats::Stats;
+use crate::math::wootz::WootzStats;
 use crate::mcmc::metro::Draw;
 
 pub(crate) struct VarTracer {
-    stats: Stats
+    stats: WootzStats,
 }
 
-const REFRESH_THRESHOLD: usize = 14;
+const N_REFRESH_THRESHOLD: usize = 333;
+const ATTEMPTS_REFRESH_THRESHOLD: usize = 14;
 
 impl VarTracer {
     pub(crate) fn new(mean_estimate: f64, std_dev_estimate: f64) -> VarTracer {
-        let mut stats = Stats::new();
-        stats.add(mean_estimate - std_dev_estimate);
-        stats.add(mean_estimate + std_dev_estimate);
+        let x0 = mean_estimate - std_dev_estimate;
+        let x1 = mean_estimate + std_dev_estimate;
+        let stats = WootzStats::new(x0, x1);
         VarTracer { stats }
     }
     pub(crate) fn add(&mut self, draw: Draw) {
         self.stats.add(draw.x);
-        if self.stats.n > REFRESH_THRESHOLD && draw.attempts_minus > REFRESH_THRESHOLD &&
-            draw.attempts_plus > REFRESH_THRESHOLD {
+        if self.stats.n() > N_REFRESH_THRESHOLD &&
+            draw.attempts_minus > ATTEMPTS_REFRESH_THRESHOLD &&
+            draw.attempts_plus > ATTEMPTS_REFRESH_THRESHOLD {
             self.refresh();
         };
     }
     pub(crate) fn refresh(&mut self) {
-        let mean = self.stats.mean().unwrap();
-        let std_dev = self.stats.variance().unwrap().sqrt();
-        self.stats.reset();
-        self.stats.add(mean - std_dev);
-        self.stats.add(mean + std_dev)
+        let mean = self.stats.mean();
+        let std_dev = self.stats.variance().sqrt();
+        let x0 = mean - std_dev;
+        let x1 = mean + std_dev;
+        self.stats = WootzStats::new(x0, x1);
     }
-    pub(crate) fn std_dev(&self) -> f64 {
-        self.stats.variance().unwrap().sqrt()
-    }
+    pub(crate) fn std_dev(&self) -> f64 { self.stats.variance().sqrt() }
 }
