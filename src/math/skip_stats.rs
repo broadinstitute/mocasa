@@ -29,7 +29,10 @@ impl SkipStats {
             Err(n_underflow_error())?;
         }
         let sum = self.sum - rhs.sum;
-        let var_sum = self.var_sum - rhs.var_sum;
+        let self_square_sum = self.var_sum + (self.n as f64) * self.mean().powi(2);
+        let rhs_square_sum = rhs.var_sum + (rhs.n as f64) * rhs.mean().powi(2);
+        let square_sum_new = self_square_sum - rhs_square_sum;
+        let var_sum = square_sum_new - sum.powi(2) / (n as f64);
         if var_sum < 0.0 {
             Err(Error::from("var_sum needs to be non-negative."))?
         }
