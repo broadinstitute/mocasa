@@ -87,7 +87,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             if i_iteration % 100 == 0 {
                 println!("{}", summary);
             }
-            if summary.inter_intra_ratios_mean < 0.5 {
+            if summary.inter_intra_ratios_mean < 1.0 {
                 println!("{}", summary);
                 params = summary.params.clone();
                 if i_cycle >= N_CYCLES_MIN && summary.relative_errors_mean < config.train.precision {
