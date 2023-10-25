@@ -20,15 +20,12 @@ impl VarTracer {
         if self.stats.n() > N_REFRESH_THRESHOLD &&
             draw.attempts_minus > ATTEMPTS_REFRESH_THRESHOLD &&
             draw.attempts_plus > ATTEMPTS_REFRESH_THRESHOLD {
-            self.refresh();
+            println!(" = = = Autosquash! = = =");
+            self.squash_stats();
         };
     }
-    pub(crate) fn refresh(&mut self) {
-        let mean = self.stats.mean();
-        let std_dev = self.stats.variance().sqrt();
-        let x0 = mean - std_dev;
-        let x1 = mean + std_dev;
-        self.stats = WootzStats::new(x0, x1);
+    pub(crate) fn squash_stats(&mut self) {
+        self.stats.squash()
     }
-    pub(crate) fn std_dev(&self) -> f64 { self.stats.variance().sqrt() }
+    pub(crate) fn std_dev(&self) -> f64 { self.stats.std_dev() }
 }

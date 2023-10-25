@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 pub(crate) struct SymMatrix<T: Clone> {
     pub(crate) size: usize,
-    elements: Vec<T>,
+    pub(crate) elements: Vec<T>,
 }
 
 impl<T: Clone> SymMatrix<T> {

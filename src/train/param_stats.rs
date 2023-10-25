@@ -4,23 +4,24 @@ use crate::data::Meta;
 use crate::error::Error;
 use crate::math::lineq::solve_lin_eq;
 use crate::math::matrix::Matrix;
-use crate::math::stats::Stats;
+use crate::math::wootz::WootzStats;
 use crate::train::param_eval::ParamEval;
 use crate::train::params::{ParamIndex, Params};
 use crate::util::sym_matrix::SymMatrix;
 
 pub(crate) struct ParamHessianStats {
     meta: Arc<Meta>,
-    gradient: Vec<Stats>,
-    hessian: SymMatrix<Stats>,
+    gradient: Vec<WootzStats>,
+    hessian: SymMatrix<WootzStats>,
 }
 
 impl ParamHessianStats {
     pub(crate) fn new(meta: Arc<Meta>) -> ParamHessianStats {
         let n_traits = meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
-        let gradient: Vec<Stats> = vec![Stats::new(); n_params];
-        let hessian: SymMatrix<Stats> = SymMatrix::new(Stats::new(), n_params);
+        let gradient: Vec<WootzStats> = vec![WootzStats::new(0.0, 0.0); n_params];
+        let hessian: SymMatrix<WootzStats> =
+            SymMatrix::new(WootzStats::new(0.0, 0.0), n_params);
         ParamHessianStats { meta, gradient, hessian }
     }
     pub(crate) fn survey_param_eval(&mut self, param_eval: &ParamEval) {
@@ -38,16 +39,12 @@ impl ParamHessianStats {
         let n_traits = self.meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
         let coeffs =
-            Matrix::try_fill(n_params, n_params,
-                             |i_row, i_col| {
-                                 self.hessian.index((i_row, i_col)).mean()
-                                     .ok_or_else(|| Error::from("No sufficient stats"))
-                             })?;
+            Matrix::fill(n_params, n_params,
+                         |i_row, i_col| {
+                             self.hessian.index((i_row, i_col)).mean()
+                         });
         let sums: Vec<f64> =
-            self.gradient.iter().map(
-                |stats|
-                    stats.mean().ok_or_else(|| Error::from("No sufficient stats"))
-            ).collect::<Result<Vec<f64>, Error>>()?;
+            self.gradient.iter().map(|stats| stats.mean()).collect::<Vec<f64>>();
         let param_changes = solve_lin_eq(coeffs, sums)?;
         let param_values_new =
             ParamIndex::all(n_traits)
@@ -56,5 +53,9 @@ impl ParamHessianStats {
                 })
                 .collect::<Vec<f64>>();
         Params::from_vec(&param_values_new, &self.meta)
+    }
+    pub(crate) fn squash(&mut self) {
+        self.gradient.iter_mut().for_each(|stats| stats.squash());
+        self.hessian.elements.iter_mut().for_each(|stats| stats.squash());
     }
 }

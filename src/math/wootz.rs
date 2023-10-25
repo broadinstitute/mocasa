@@ -1,6 +1,7 @@
 use std::mem;
 use crate::math::skip_stats::SkipStats;
 
+#[derive(Clone)]
 pub(crate) struct WootzStats {
     stats: SkipStats,
     snapshots: Vec<SkipStats>,
@@ -12,10 +13,10 @@ const N_SNAPSHOTS_MAX: usize = 10;
 
 impl WootzStats {
     pub(crate) fn new(x0: f64, x1: f64) -> WootzStats {
-        let main_layer = SkipStats::new(x0, x1);
+        let stats = SkipStats::new(x0, x1);
         let snapshots: Vec<SkipStats> = Vec::new();
         let n_per_snapshot = N_PER_SNAPSHOT_INITIAL;
-        WootzStats { stats: main_layer, snapshots, n_per_snapshot }
+        WootzStats { stats, snapshots, n_per_snapshot }
     }
     pub(crate) fn add(&mut self, x_new: f64) {
         self.stats.add(x_new);
@@ -33,6 +34,16 @@ impl WootzStats {
     pub(crate) fn n(&self) -> usize { self.stats.n }
     pub(crate) fn mean(&self) -> f64 { self.stats.mean() }
     pub(crate) fn variance(&self) -> f64 { self.stats.variance() }
+    pub(crate) fn std_dev(&self) -> f64 { self.variance().sqrt() }
+    pub(crate) fn squash(&mut self) {
+        let mean = self.mean();
+        let std_dev = self.std_dev();
+        let x0 = mean - std_dev;
+        let x1 = mean + std_dev;
+        self.stats = SkipStats::new(x0, x1);
+        self.snapshots = Vec::new();
+        self.n_per_snapshot = N_PER_SNAPSHOT_INITIAL;
+    }
     fn should_truncate(&self) -> bool {
         let mean = self.stats.mean();
         let dist0 = (self.snapshots[0].mean() - mean).abs();

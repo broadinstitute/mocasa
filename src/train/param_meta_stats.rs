@@ -3,93 +3,122 @@ use std::sync::Arc;
 use crate::data::Meta;
 use crate::error::Error;
 use crate::math::stats::Stats;
+use crate::math::wootz::WootzStats;
 use crate::train::params::{ParamIndex, Params};
 
-pub(crate) struct ParamMetaStats {
+pub(crate) struct ParamMetaStatsOld {
     n_chains_used: usize,
     meta: Arc<Meta>,
     stats: Vec<Stats>,
+}
+
+pub(crate) struct ParamMetaStats {
+    meta: Arc<Meta>,
+    stats: Vec<Vec<WootzStats>>,
 }
 
 pub(crate) struct Summary {
     pub(crate) meta: Arc<Meta>,
     pub(crate) n_chains_used: usize,
     pub(crate) params: Params,
-    pub(crate) params_old: Params,
-    pub(crate) intra_chains: Vec<f64>,
-    pub(crate) intra_steps: Vec<f64>,
-    pub(crate) intra_chains_mean: f64,
-    pub(crate) intra_steps_mean: f64,
+    pub(crate) intra_chain_vars: Vec<f64>,
+    pub(crate) inter_chain_vars: Vec<f64>,
+    pub(crate) inter_intra_ratios: Vec<f64>,
+    pub(crate) relative_errors: Vec<f64>,
+    pub(crate) inter_intra_ratios_mean: f64,
+    pub(crate) relative_errors_mean: f64,
+}
+
+impl ParamMetaStats {
+    pub(crate) fn new(n_chains_used: usize, meta: Arc<Meta>, params0: &[Params],
+                      params1: &[Params]) -> ParamMetaStats {
+        let n_traits = meta.n_traits();
+        let stats = (0..n_chains_used).map(|i_chain| {
+            ParamIndex::all(n_traits).map(|index| {
+                let param0 = params0[i_chain][index];
+                let param1 = params1[i_chain][index];
+                WootzStats::new(param0, param1)
+            }).collect::<Vec<WootzStats>>()
+        }).collect::<Vec<Vec<WootzStats>>>();
+        ParamMetaStats { meta, stats }
+    }
+    pub(crate) fn n_chains_used(&self) -> usize { self.stats.len() }
+    pub(crate) fn add(&mut self, params: &[Params]) {
+        let n_traits = self.meta.n_traits();
+        for (i_chain, param) in params.iter().enumerate() {
+            for index in ParamIndex::all(n_traits) {
+                let i_param = index.get_ordinal(n_traits);
+                self.stats[i_chain][i_param].add(param[index])
+            }
+        }
+    }
+    pub(crate) fn summary(&self) -> Result<Summary, Error> {
+        let meta = self.meta.clone();
+        let n_traits = meta.n_traits();
+        let n_chains_used = self.n_chains_used();
+        let n_params = ParamIndex::n_params(n_traits);
+        let mut param_values: Vec<f64> = Vec::with_capacity(n_params);
+        let mut intra_chain_vars: Vec<f64> = Vec::with_capacity(n_params);
+        let mut inter_chain_vars: Vec<f64> = Vec::with_capacity(n_params);
+        let mut inter_intra_ratios: Vec<f64> = Vec::with_capacity(n_params);
+        let mut relative_errors: Vec<f64> = Vec::with_capacity(n_params);
+        for index in ParamIndex::all(n_traits) {
+            let i_param = index.get_ordinal(n_traits);
+            let mut inter_mean_stats = Stats::new();
+            let mut inter_var_stats = Stats::new();
+            for i_chain in 0..n_chains_used {
+                let stats = &self.stats[i_chain][i_param];
+                inter_mean_stats.add(stats.mean());
+                inter_var_stats.add(stats.variance());
+            }
+            let param_value = unwrap_or_not_enough_data(inter_mean_stats.mean())?;
+            let intra_chain_var = unwrap_or_not_enough_data(inter_var_stats.mean())?;
+            let inter_chain_var = unwrap_or_not_enough_data(inter_mean_stats.variance())?;
+            let inter_intra_ratio = inter_chain_var / intra_chain_var;
+            let relative_error =
+                (intra_chain_var.sqrt() / param_value.abs()) / (n_chains_used as f64).sqrt();
+            param_values.push(param_value);
+            intra_chain_vars.push(intra_chain_var);
+            inter_chain_vars.push(inter_chain_var);
+            inter_intra_ratios.push(inter_intra_ratio);
+            relative_errors.push(relative_error);
+        }
+        let params = Params::from_vec(&param_values, &meta)?;
+        let inter_intra_ratios_mean =
+            inter_intra_ratios.iter().sum::<f64>() / (n_chains_used as f64);
+        let relative_errors_mean =
+            relative_errors.iter().sum::<f64>() / (n_chains_used as f64);
+        Ok(Summary {
+            meta,
+            n_chains_used,
+            params,
+            intra_chain_vars,
+            inter_chain_vars,
+            inter_intra_ratios,
+            relative_errors,
+            inter_intra_ratios_mean,
+            relative_errors_mean
+        })
+    }
 }
 
 fn unwrap_or_not_enough_data(value: Option<f64>) -> Result<f64, Error> {
     value.ok_or_else(|| Error::from("Not enough data"))
 }
 
-impl ParamMetaStats {
-    pub(crate) fn new(meta: Arc<Meta>) -> ParamMetaStats {
-        let n_chains_used: usize = 0;
-        let n_params = ParamIndex::n_params(meta.n_traits());
-        let stats = vec![Stats::new(); n_params];
-        ParamMetaStats { n_chains_used, meta, stats }
-    }
-    pub(crate) fn add(&mut self, params: Params) {
-        let n_traits = self.meta.n_traits();
-        self.n_chains_used += 1;
-        for i in ParamIndex::all(n_traits) {
-            self.stats[i.get_ordinal(n_traits)].add(params[i])
-        }
-    }
-    pub(crate) fn summary(&self, params_old: &Params) -> Result<Summary, Error> {
-        let meta = self.meta.clone();
-        let n_traits = self.meta.n_traits();
-        let n_params = ParamIndex::n_params(n_traits);
-        let mut values: Vec<f64> = Vec::with_capacity(n_params);
-        let mut intra_chains: Vec<f64> = Vec::with_capacity(n_params);
-        let mut intra_steps: Vec<f64> = Vec::with_capacity(n_params);
-        for index in ParamIndex::all(n_traits) {
-            let i_param = index.get_ordinal(n_traits);
-            let stats = &self.stats[i_param];
-            let mean = unwrap_or_not_enough_data(stats.mean())?;
-            let var = unwrap_or_not_enough_data(stats.variance())?;
-            let std_dev = var.sqrt();
-            values.push(mean);
-            intra_chains.push(std_dev / mean.abs());
-            let param_old = params_old[index];
-            intra_steps.push(2.0 * (param_old - mean).abs() / (param_old.abs() + mean.abs()));
-        }
-        let n_chains_used = self.n_chains_used;
-        let params = Params::from_vec(&values, &self.meta)?;
-        let intra_chains_mean = intra_chains.iter().sum::<f64>() / (n_traits as f64);
-        let intra_steps_mean = intra_steps.iter().sum::<f64>() / (n_traits as f64);
-        let params_old = params_old.clone();
-        Ok(Summary {
-            meta,
-            n_chains_used,
-            params,
-            params_old,
-            intra_chains,
-            intra_steps,
-            intra_chains_mean,
-            intra_steps_mean,
-        })
-    }
-}
-
 impl Display for Summary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let n_traits = self.meta.n_traits();
         writeln!(f, "Chains used: {}", self.n_chains_used)?;
-        writeln!(f, "Intra chains mean: {}", self.intra_chains_mean)?;
-        writeln!(f, "Intra steps mean: {}", self.intra_steps_mean)?;
-        writeln!(f, "Ratio: {}", self.intra_chains_mean / self.intra_steps_mean)?;
-        writeln!(f, "param\tvalue\tvalue_old\tdiff\tintra_chains\tintra_steps")?;
+        writeln!(f, "Relative errors mean: {}", self.relative_errors_mean)?;
+        writeln!(f, "Inter/intra ratios mean: {}", self.inter_intra_ratios_mean.sqrt())?;
+        writeln!(f, "param\tvalue\trel.err.\tinter_chains\tintra_chains")?;
         for (i, index) in ParamIndex::all(n_traits).enumerate() {
             let param = self.params[index];
-            let param_old = self.params_old[index];
-            writeln!(f, "{}\t{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
-                     param, param_old, param - param_old, self.intra_chains[i],
-                     self.intra_steps[i])?
+            let rel_err = self.relative_errors[i];
+            writeln!(f, "{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
+                     param, rel_err, self.inter_chain_vars[i].sqrt(),
+                     self.intra_chain_vars[i].sqrt())?
         }
         Ok(())
     }

@@ -76,10 +76,10 @@ impl<R: Rng> Sampler<R> {
         t_stat.add(draw);
         t
     }
-    pub(crate) fn reset_stats(&mut self) {
-        self.e_stats.iter_mut().for_each(|e_stat| e_stat.refresh());
+    pub(crate) fn squash_stats(&mut self) {
+        self.e_stats.iter_mut().for_each(|e_stat| e_stat.squash_stats());
         self.t_stats.iter_mut().for_each(|t_stats|
-            t_stats.iter_mut().for_each(|t_stat| t_stat.refresh())
+            t_stats.iter_mut().for_each(|t_stat| t_stat.squash_stats())
         )
     }
 }
