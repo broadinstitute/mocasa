@@ -5,7 +5,7 @@ mod params;
 mod vars;
 mod param_eval;
 mod worker;
-mod param_meta_stats;
+pub(crate) mod param_meta_stats;
 mod var_trace;
 mod initial_params;
 
@@ -66,6 +66,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let n_samples: usize = config.train.n_samples_per_round;
     let start_time = SystemTime::now();
     const N_CYCLES_MIN: usize = 42;
+    const N_ITERATIONS_MIN: usize = 42;
     let mut i_cycle: usize = 0;
     let mut i_iteration: usize = 0;
     loop {
@@ -79,15 +80,15 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         let mut reached_precision = false;
         loop {
             i_iteration += 1;
-            println!("Cycle {}, iteration {}.", i_cycle, i_iteration);
             let params_new =
                 create_param_estimates(&senders, &receiver, config, n_samples, &start_time)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
             if i_iteration % 100 == 0 {
+                println!("Cycle {}, iteration {}.", i_cycle, i_iteration);
                 println!("{}", summary);
             }
-            if summary.inter_intra_ratios_mean < 1.0 {
+            if i_iteration >= N_ITERATIONS_MIN && summary.inter_intra_ratios_mean < 1.0 {
                 println!("{}", summary);
                 params = summary.params.clone();
                 if i_cycle >= N_CYCLES_MIN && summary.relative_errors_mean < config.train.precision {
@@ -137,14 +138,14 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
             Err(RecvTimeoutError::Disconnected) => { receive_result?; }
         }
     }
-    let n_iterations = config.train.n_steps_per_sample * n_samples;
+    let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
     let secs_elapsed = (start_time_round.elapsed()?.as_millis() as f64) / 1000.0;
     let elapsed_round = format_duration(start_time_round.elapsed()?);
     let elapsed_total = format_duration(start_time.elapsed()?);
-    let iterations_per_sec = (n_iterations as f64) / secs_elapsed;
+    let steps_per_sec = (n_steps_per_iteration as f64) / secs_elapsed;
     println!("Completed {} iterations over all data points and variables in {}, \
         which is {} iterations per second and thread. Total time is {}",
-             n_iterations, elapsed_round, iterations_per_sec, elapsed_total);
+             n_steps_per_iteration, elapsed_round, steps_per_sec, elapsed_total);
     let mut params: Vec<Params> = Vec::with_capacity(n_threads);
     for param_estimate in param_estimates {
         match param_estimate {

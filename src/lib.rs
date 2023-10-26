@@ -11,6 +11,7 @@ mod data;
 mod math;
 mod mcmc;
 mod util;
+mod report;
 
 pub fn run() -> Result<(), Error> {
     let cli_options = get_cli_options()?;
