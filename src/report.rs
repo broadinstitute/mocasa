@@ -5,7 +5,7 @@ use crate::util::duration_format::format_duration;
 pub(crate) struct Reporter {
     start_time: SystemTime,
     start_time_round: SystemTime,
-    time_since_last_report: SystemTime
+    time_since_last_report: SystemTime,
 }
 
 const TIME_BETWEEN_OPTIONAL_REPORTS_SECS: u64 = 10;
@@ -20,7 +20,7 @@ impl Reporter {
     pub(crate) fn reset_round_timer(&mut self) {
         self.start_time_round = SystemTime::now();
     }
-    pub(crate) fn maybe_report(&mut self, summary: Summary, i_cycle: usize, i_iteration: usize,
+    pub(crate) fn maybe_report(&mut self, summary: &Summary, i_cycle: usize, i_iteration: usize,
                                n_steps_per_iteration: usize) {
         let secs_passed =
             self.time_since_last_report.elapsed().unwrap_or(Duration::ZERO).as_secs();
@@ -28,7 +28,7 @@ impl Reporter {
             self.report(summary, i_cycle, i_iteration, n_steps_per_iteration)
         }
     }
-    pub(crate) fn report(&mut self, summary: Summary, i_cycle: usize, i_iteration: usize,
+    pub(crate) fn report(&mut self, summary: &Summary, i_cycle: usize, i_iteration: usize,
                          n_steps_per_iteration: usize) {
         let duration_round =
             self.start_time_round.elapsed().unwrap_or(Duration::ZERO);
@@ -44,8 +44,4 @@ impl Reporter {
         println!("{}", summary);
         self.time_since_last_report = SystemTime::now();
     }
-}
-
-fn duration_or_zero<E>(duration: Result<Duration, E>) -> Duration {
-    duration.unwrap_or(Duration::ZERO)
 }

@@ -13,16 +13,16 @@ use std::cmp;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::thread::{available_parallelism, JoinHandle, spawn};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use crate::data::{load_training_data, TrainData};
 use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
+use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::worker::train_chain;
-use crate::util::duration_format::format_duration;
 
 pub(crate) enum MessageToWorker {
     TakeNSamples(usize),
@@ -64,32 +64,26 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         launch_workers(&model, &params, worker_sender, n_threads, &config.train);
     println!("Workers launched and burned in.");
     let n_samples: usize = config.train.n_samples_per_round;
-    let start_time = SystemTime::now();
+    let mut reporter = Reporter::new();
     const N_CYCLES_MIN: usize = 42;
     const N_ITERATIONS_MIN: usize = 42;
     let mut i_cycle: usize = 0;
     let mut i_iteration: usize = 0;
+    let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
     loop {
-        let params0 =
-            create_param_estimates(&senders, &receiver, config, n_samples, &start_time)?;
-        let params1 =
-            create_param_estimates(&senders, &receiver, config, n_samples, &start_time)?;
+        let params0 = create_param_estimates(&senders, &receiver, n_samples)?;
+        let params1 = create_param_estimates(&senders, &receiver, n_samples)?;
         let mut param_meta_stats =
             ParamMetaStats::new(n_threads, params.meta.clone(), &params0,
                                 &params1);
         let mut reached_precision = false;
         loop {
             i_iteration += 1;
-            let params_new =
-                create_param_estimates(&senders, &receiver, config, n_samples, &start_time)?;
+            let params_new = create_param_estimates(&senders, &receiver, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
-            if i_iteration % 100 == 0 {
-                println!("Cycle {}, iteration {}.", i_cycle, i_iteration);
-                println!("{}", summary);
-            }
+            reporter.maybe_report(&summary, i_cycle, i_iteration, n_steps_per_iteration);
             if i_iteration >= N_ITERATIONS_MIN && summary.inter_intra_ratios_mean < 1.0 {
-                println!("{}", summary);
                 params = summary.params.clone();
                 if i_cycle >= N_CYCLES_MIN && summary.relative_errors_mean < config.train.precision {
                     println!("Reached desired precision!");
@@ -102,6 +96,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                         sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                     }
                 }
+                reporter.report(&summary, i_cycle, i_iteration, n_steps_per_iteration);
+                reporter.reset_round_timer();
                 break;
             }
         }
@@ -114,11 +110,9 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
 }
 
 fn create_param_estimates(senders: &[Sender<MessageToWorker>],
-                          receiver: &Receiver<MessageToCentral>, config: &Config, n_samples: usize,
-                          start_time: &SystemTime)
+                          receiver: &Receiver<MessageToCentral>, n_samples: usize)
     -> Result<Vec<Params>, Error> {
     let n_threads = senders.len();
-    let start_time_round = SystemTime::now();
     for sender in senders.iter() {
         sender.send(MessageToWorker::TakeNSamples(n_samples))?;
     }
@@ -138,14 +132,6 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
             Err(RecvTimeoutError::Disconnected) => { receive_result?; }
         }
     }
-    let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
-    let secs_elapsed = (start_time_round.elapsed()?.as_millis() as f64) / 1000.0;
-    let elapsed_round = format_duration(start_time_round.elapsed()?);
-    let elapsed_total = format_duration(start_time.elapsed()?);
-    let steps_per_sec = (n_steps_per_iteration as f64) / secs_elapsed;
-    println!("Completed {} iterations over all data points and variables in {}, \
-        which is {} iterations per second and thread. Total time is {}",
-             n_steps_per_iteration, elapsed_round, steps_per_sec, elapsed_total);
     let mut params: Vec<Params> = Vec::with_capacity(n_threads);
     for param_estimate in param_estimates {
         match param_estimate {
@@ -185,14 +171,14 @@ fn launch_workers(model: &Arc<TrainModel>, params: &Params,
 fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<MessageToWorker>]) {
     for (i, sender) in senders.iter().enumerate() {
         match sender.send(MessageToWorker::Shutdown) {
-            Ok(_) => { println!("Worker {} requested to shut down.", i) }
+            Ok(_) => { println!("Sent to worker {} request to shut down.", i) }
             Err(_) => { println!("Could not reach worker {}.", i) }
         };
     }
     for (i, join_handle) in join_handles.into_iter().enumerate() {
         match join_handle.join() {
-            Ok(_) => { println!("Worker {} shutdown.", i) }
-            Err(_) => { println!("Worker {} crashed.", i) }
+            Ok(_) => { println!("Worker {} has shut down.", i) }
+            Err(_) => { println!("Worker {} has crashed.", i) }
         }
     }
 }

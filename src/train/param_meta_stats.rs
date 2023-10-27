@@ -6,12 +6,6 @@ use crate::math::stats::Stats;
 use crate::math::wootz::WootzStats;
 use crate::train::params::{ParamIndex, Params};
 
-pub(crate) struct ParamMetaStatsOld {
-    n_chains_used: usize,
-    meta: Arc<Meta>,
-    stats: Vec<Stats>,
-}
-
 pub(crate) struct ParamMetaStats {
     meta: Arc<Meta>,
     stats: Vec<Vec<WootzStats>>,
