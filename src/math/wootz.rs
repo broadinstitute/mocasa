@@ -6,6 +6,7 @@ pub(crate) struct WootzStats {
     stats: SkipStats,
     snapshots: Vec<SkipStats>,
     n_per_snapshot: usize,
+    burnedness: usize
 }
 
 const N_PER_SNAPSHOT_INITIAL: usize = 10;
@@ -16,7 +17,8 @@ impl WootzStats {
         let stats = SkipStats::new(x0, x1);
         let snapshots: Vec<SkipStats> = Vec::new();
         let n_per_snapshot = N_PER_SNAPSHOT_INITIAL;
-        WootzStats { stats, snapshots, n_per_snapshot }
+        let burnedness: usize = 0;
+        WootzStats { stats, snapshots, n_per_snapshot, burnedness }
     }
     pub(crate) fn add(&mut self, x_new: f64) {
         self.stats.add(x_new);
@@ -24,9 +26,11 @@ impl WootzStats {
             self.snapshots.push(self.stats.clone());
             if self.snapshots.len() > N_SNAPSHOTS_MAX {
                 if self.should_truncate() {
-                    self.truncate()
+                    self.truncate();
+                    self.burnedness = 0;
                 } else {
-                    self.fold()
+                    self.fold();
+                    self.burnedness += 1;
                 }
             }
         }
@@ -44,11 +48,29 @@ impl WootzStats {
         self.snapshots = Vec::new();
         self.n_per_snapshot = N_PER_SNAPSHOT_INITIAL;
     }
+    pub(crate) fn autocity(&self) -> Option<f64> {
+        let n_snapshots = self.snapshots.len();
+        if n_snapshots < 3 {
+            None
+        } else {
+            let mean = self.stats.mean();
+            let mut buckets_var_sum: f64 = (self.snapshots[0].mean() - mean).powi(2);
+            for pair in self.snapshots.windows(2) {
+                let [s0, s1] = pair else { unreachable!() };
+                let bucket_stats = s1.try_minus(s0).unwrap();
+                buckets_var_sum += (bucket_stats.mean() - mean).powi(2);
+            }
+            let bucket_var = buckets_var_sum / (n_snapshots as f64);
+            let autocity = (self.n_per_snapshot as f64) * bucket_var / self.variance();
+            Some(autocity)
+        }
+    }
+    pub(crate) fn burnedness(&self) -> usize { self.burnedness }
     fn should_truncate(&self) -> bool {
         let mean = self.stats.mean();
         let dist0 = (self.snapshots[0].mean() - mean).abs();
-        self.snapshots.windows(2).all(|win| {
-            let [s0, s1] = win else { unreachable!() };
+        self.snapshots.windows(2).all(|pair| {
+            let [s0, s1] = pair else { unreachable!() };
             let n = s1.n - s0.n;
             let sum = s1.sum - s0.sum;
             let mean_layer = sum / (n as f64);

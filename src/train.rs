@@ -66,7 +66,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let n_samples: usize = config.train.n_samples_per_round;
     let mut reporter = Reporter::new();
     const N_CYCLES_MIN: usize = 42;
-    const N_ITERATIONS_MIN: usize = 42;
+    const N_ITERATIONS_MIN: usize = 119;
     let mut i_cycle: usize = 0;
     let mut i_iteration: usize = 0;
     let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
@@ -90,8 +90,9 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                     reached_precision = true;
                 } else {
                     i_cycle += 1;
+                    println!("Setting new parameters for cycle {} after {} iterations", i_cycle,
+                             i_iteration);
                     i_iteration = 0;
-                    println!("Setting new parameters for cycle {}", i_cycle);
                     for sender in senders.iter() {
                         sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                     }

@@ -19,8 +19,12 @@ pub(crate) struct Summary {
     pub(crate) inter_chain_vars: Vec<f64>,
     pub(crate) inter_intra_ratios: Vec<f64>,
     pub(crate) relative_errors: Vec<f64>,
+    pub(crate) autocities: Vec<f64>,
+    pub(crate) burnednesses: Vec<f64>,
     pub(crate) inter_intra_ratios_mean: f64,
     pub(crate) relative_errors_mean: f64,
+    pub(crate) autocities_mean: f64,
+    pub(crate) burnednesses_mean: f64,
 }
 
 impl ParamMetaStats {
@@ -56,14 +60,20 @@ impl ParamMetaStats {
         let mut inter_chain_vars: Vec<f64> = Vec::with_capacity(n_params);
         let mut inter_intra_ratios: Vec<f64> = Vec::with_capacity(n_params);
         let mut relative_errors: Vec<f64> = Vec::with_capacity(n_params);
+        let mut autocities: Vec<f64> = Vec::with_capacity(n_params);
+        let mut burnednesses: Vec<f64> = Vec::with_capacity(n_params);
         for index in ParamIndex::all(n_traits) {
             let i_param = index.get_ordinal(n_traits);
             let mut inter_mean_stats = Stats::new();
             let mut inter_var_stats = Stats::new();
+            let mut autocity_stats = Stats::new();
+            let mut burnedness_stats = Stats::new();
             for i_chain in 0..n_chains_used {
                 let stats = &self.stats[i_chain][i_param];
                 inter_mean_stats.add(stats.mean());
                 inter_var_stats.add(stats.variance());
+                autocity_stats.add(stats.autocity().unwrap_or(1e23));
+                burnedness_stats.add(stats.burnedness() as f64)
             }
             let param_value = unwrap_or_not_enough_data(inter_mean_stats.mean())?;
             let intra_chain_var = unwrap_or_not_enough_data(inter_var_stats.mean())?;
@@ -71,17 +81,23 @@ impl ParamMetaStats {
             let inter_intra_ratio = inter_chain_var / intra_chain_var;
             let relative_error =
                 (intra_chain_var.sqrt() / param_value.abs()) / (n_chains_used as f64).sqrt();
+            let autocity = unwrap_or_not_enough_data(autocity_stats.mean())?;
+            let burnedness = unwrap_or_not_enough_data(burnedness_stats.mean())?;
             param_values.push(param_value);
             intra_chain_vars.push(intra_chain_var);
             inter_chain_vars.push(inter_chain_var);
             inter_intra_ratios.push(inter_intra_ratio);
             relative_errors.push(relative_error);
+            autocities.push(autocity);
+            burnednesses.push(burnedness);
         }
         let params = Params::from_vec(&param_values, &meta)?;
         let inter_intra_ratios_mean =
-            inter_intra_ratios.iter().sum::<f64>() / (n_chains_used as f64);
+            inter_intra_ratios.iter().sum::<f64>() / (n_params as f64);
         let relative_errors_mean =
-            relative_errors.iter().sum::<f64>() / (n_chains_used as f64);
+            relative_errors.iter().sum::<f64>() / (n_params as f64);
+        let autocities_mean = autocities.iter().sum::<f64>() / (n_params as f64);
+        let burnednesses_mean = burnednesses.iter().sum::<f64>() / (n_params as f64);
         Ok(Summary {
             meta,
             n_chains_used,
@@ -90,8 +106,12 @@ impl ParamMetaStats {
             inter_chain_vars,
             inter_intra_ratios,
             relative_errors,
+            autocities,
+            burnednesses,
             inter_intra_ratios_mean,
-            relative_errors_mean
+            relative_errors_mean,
+            autocities_mean,
+            burnednesses_mean
         })
     }
 }
@@ -106,13 +126,15 @@ impl Display for Summary {
         writeln!(f, "Chains used: {}", self.n_chains_used)?;
         writeln!(f, "Relative errors mean: {}", self.relative_errors_mean)?;
         writeln!(f, "Inter/intra ratios mean: {}", self.inter_intra_ratios_mean.sqrt())?;
-        writeln!(f, "param\tvalue\trel.err.\tinter_chains\tintra_chains")?;
+        writeln!(f, "Mean autocity: {}", self.autocities_mean)?;
+        writeln!(f, "Mean burnedness: {}", self.burnednesses_mean)?;
+        writeln!(f, "param\tvalue\trel.err.\tinter_chains\tintra_chains\tautocity\tburnedness")?;
         for (i, index) in ParamIndex::all(n_traits).enumerate() {
             let param = self.params[index];
             let rel_err = self.relative_errors[i];
-            writeln!(f, "{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
+            writeln!(f, "{}\t{}\t{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
                      param, rel_err, self.inter_chain_vars[i].sqrt(),
-                     self.intra_chain_vars[i].sqrt())?
+                     self.intra_chain_vars[i].sqrt(), self.autocities[i], self.burnednesses[i])?
         }
         Ok(())
     }

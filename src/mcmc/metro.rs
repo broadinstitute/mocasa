@@ -17,6 +17,7 @@ impl<R: Rng> MetroHast<R> {
                                                -> Draw {
         let mut attempts_minus: usize = 0;
         let mut attempts_plus: usize = 0;
+        let mut my_quot: f64 = 0.0;
         let x =
             loop {
                 let x_diff = self.rng.gen_range(-std_dev..std_dev);
@@ -27,10 +28,15 @@ impl<R: Rng> MetroHast<R> {
                 }
                 let x_new = x_old + x_diff;
                 let quot = f_quot(x_new, x_old);
+                my_quot = quot;
                 if quot >= 1.0 || quot > self.rng.gen_range(0.0..1.0) {
                     break x_new;
                 }
             };
+        if attempts_minus + attempts_plus > 5 {
+            println!("quot: {}, attempt_minus: {}, attempts_plus: {}", my_quot, attempts_minus,
+                     attempts_plus);
+        }
         Draw { x, attempts_minus, attempts_plus }
     }
 }
