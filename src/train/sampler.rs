@@ -53,10 +53,6 @@ impl<R: Rng> Sampler<R> {
         let e_stat = &mut self.e_stats[*i_data_point];
         let sigma_estimate = e_stat.std_dev();
         let draw = self.metro_hast.draw(f_quot, e_old, sigma_estimate);
-        if draw.attempts_minus + draw.attempts_plus > 100 {
-            println!("Needed {} + {} attempts to sample E_{}.",
-                     draw.attempts_minus, draw.attempts_plus, i_data_point)
-        }
         let e = draw.x;
         e_stat.add(draw);
         e
@@ -68,18 +64,14 @@ impl<R: Rng> Sampler<R> {
         let t_stat = &mut self.t_stats[*i_data_point][*i_trait];
         let sigma_estimate = t_stat.std_dev();
         let draw = self.metro_hast.draw(f_quot, t_old, sigma_estimate);
-        if draw.attempts_minus + draw.attempts_plus > 100000 {
-            println!("Needed {} + {} attempts to sample T_{}_{}",
-                     draw.attempts_minus, draw.attempts_plus, i_data_point, i_trait)
-        }
         let t = draw.x;
         t_stat.add(draw);
         t
     }
     pub(crate) fn squash_stats(&mut self) {
-        self.e_stats.iter_mut().for_each(|e_stat| e_stat.squash_stats());
+        self.e_stats.iter_mut().for_each(|e_stat| e_stat.soften_stats());
         self.t_stats.iter_mut().for_each(|t_stats|
-            t_stats.iter_mut().for_each(|t_stat| t_stat.squash_stats())
+            t_stats.iter_mut().for_each(|t_stat| t_stat.soften_stats())
         )
     }
 }

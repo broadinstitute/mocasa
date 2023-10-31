@@ -1,31 +1,31 @@
-use crate::math::wootz::WootzStats;
 use crate::mcmc::metro::Draw;
 
 pub(crate) struct VarTracer {
-    stats: WootzStats,
+    pub(crate) mean: f64,
+    pub(crate) variance: f64,
+    pub(crate) rigidity: usize,
 }
 
-const N_REFRESH_THRESHOLD: usize = 333;
-const ATTEMPTS_REFRESH_THRESHOLD: usize = 14;
+const RIGIDITY_INITIAL: usize = 3;
+const RIGIDITY_MAX: usize = 100;
 
 impl VarTracer {
     pub(crate) fn new(mean_estimate: f64, std_dev_estimate: f64) -> VarTracer {
-        let x0 = mean_estimate - std_dev_estimate;
-        let x1 = mean_estimate + std_dev_estimate;
-        let stats = WootzStats::new(x0, x1);
-        VarTracer { stats }
+        let mean = mean_estimate;
+        let variance = std_dev_estimate.sqrt();
+        let rigidity = RIGIDITY_INITIAL;
+        VarTracer { mean, variance, rigidity }
     }
     pub(crate) fn add(&mut self, draw: Draw) {
-        self.stats.add(draw.x);
-        if self.stats.n() > N_REFRESH_THRESHOLD &&
-            draw.attempts_minus > ATTEMPTS_REFRESH_THRESHOLD &&
-            draw.attempts_plus > ATTEMPTS_REFRESH_THRESHOLD {
-            println!(" = = = Autosquash! = = =");
-            self.squash_stats();
-        };
+        let x = draw.x;
+        let p = 1.0 / (self.rigidity as f64);
+        let q = 1.0 - p;
+        self.mean = q * self.mean + p * x;
+        self.variance = q * self.variance + p * (x - self.mean).powi(2);
+        if self.rigidity < RIGIDITY_MAX {
+            self.rigidity += 1;
+        }
     }
-    pub(crate) fn squash_stats(&mut self) {
-        self.stats.squash()
-    }
-    pub(crate) fn std_dev(&self) -> f64 { self.stats.std_dev() }
+    pub(crate) fn soften_stats(&mut self) { self.rigidity = RIGIDITY_INITIAL }
+    pub(crate) fn std_dev(&self) -> f64 { self.variance.sqrt() }
 }
