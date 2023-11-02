@@ -120,6 +120,10 @@ fn unwrap_or_not_enough_data(value: Option<f64>) -> Result<f64, Error> {
     value.ok_or_else(|| Error::from("Not enough data"))
 }
 
+fn str12<T: Display>(item: T) -> String {
+    format!("{}            ", item)[0..12].to_string()
+}
+
 impl Display for Summary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let n_traits = self.meta.n_traits();
@@ -128,13 +132,21 @@ impl Display for Summary {
         writeln!(f, "Inter/intra ratios mean: {}", self.inter_intra_ratios_mean.sqrt())?;
         writeln!(f, "Mean autocity: {}", self.autocities_mean)?;
         writeln!(f, "Mean burnedness: {}", self.burnednesses_mean)?;
-        writeln!(f, "param\tvalue\trel.err.\tinter_chains\tintra_chains\tautocity\tburnedness")?;
+        writeln!(f, "{} {} {} {} {} {} {} {}",
+                 str12("param"), str12("value"), str12("rel.err."),
+                 str12("inter_chains"), str12("intra_chains"), str12("ratio"),
+                 str12("autocity"), str12("burnedness"))?;
         for (i, index) in ParamIndex::all(n_traits).enumerate() {
             let param = self.params[index];
             let rel_err = self.relative_errors[i];
-            writeln!(f, "{}\t{}\t{}\t{}\t{}\t{}\t{}", index.with_trait_name(&self.meta.trait_names),
-                     param, rel_err, self.inter_chain_vars[i].sqrt(),
-                     self.intra_chain_vars[i].sqrt(), self.autocities[i], self.burnednesses[i])?
+            let inter_chain_std_dev = self.inter_chain_vars[i].sqrt();
+            let intra_chain_std_dev = self.intra_chain_vars[i].sqrt();
+            let ratio = inter_chain_std_dev / intra_chain_std_dev;
+            writeln!(f, "{} {} {} {} {} {} {} {}",
+                     str12(index.with_trait_name(&self.meta.trait_names)),
+                     str12(param), str12(rel_err), str12(inter_chain_std_dev),
+                     str12(intra_chain_std_dev), str12(ratio),
+                     str12(self.autocities[i]), str12(self.burnednesses[i]))?
         }
         Ok(())
     }

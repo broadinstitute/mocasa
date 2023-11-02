@@ -36,7 +36,8 @@ impl Reporter {
         let elapsed_round = format_duration(duration_round);
         let duration_total = self.start_time.elapsed().unwrap_or(Duration::ZERO);
         let elapsed_total = format_duration(duration_total);
-        let steps_per_sec = (n_steps_per_iteration as f64) / secs_elapsed;
+        let steps_per_sec =
+            ((i_iteration + 1) as f64) * (n_steps_per_iteration as f64) / secs_elapsed;
         println!("Cycle {}, iteration {}: completed {} steps in {}, \
         which is {} iterations per second and thread. Total time is {}",
                  i_cycle, i_iteration, n_steps_per_iteration, elapsed_round, steps_per_sec,
