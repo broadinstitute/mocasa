@@ -4,24 +4,24 @@ use crate::data::Meta;
 use crate::error::Error;
 use crate::math::lineq::solve_lin_eq;
 use crate::math::matrix::Matrix;
-use crate::math::wootz::WootzStats;
+use crate::math::trident::TridentStats;
 use crate::train::param_eval::ParamEval;
 use crate::train::params::{ParamIndex, Params};
 use crate::util::sym_matrix::SymMatrix;
 
 pub(crate) struct ParamHessianStats {
     meta: Arc<Meta>,
-    gradient: Vec<WootzStats>,
-    hessian: SymMatrix<WootzStats>,
+    gradient: Vec<TridentStats>,
+    hessian: SymMatrix<TridentStats>,
 }
 
 impl ParamHessianStats {
     pub(crate) fn new(meta: Arc<Meta>) -> ParamHessianStats {
         let n_traits = meta.n_traits();
         let n_params = ParamIndex::n_params(n_traits);
-        let gradient: Vec<WootzStats> = vec![WootzStats::new(0.0, 0.0); n_params];
-        let hessian: SymMatrix<WootzStats> =
-            SymMatrix::new(WootzStats::new(0.0, 0.0), n_params);
+        let gradient: Vec<TridentStats> = vec![TridentStats::new(0.0, 0.0); n_params];
+        let hessian: SymMatrix<TridentStats> =
+            SymMatrix::new(TridentStats::new(0.0, 0.0), n_params);
         ParamHessianStats { meta, gradient, hessian }
     }
     pub(crate) fn survey_param_eval(&mut self, param_eval: &ParamEval) {
@@ -53,9 +53,5 @@ impl ParamHessianStats {
                 })
                 .collect::<Vec<f64>>();
         Params::from_vec(&param_values_new, &self.meta)
-    }
-    pub(crate) fn squash(&mut self) {
-        self.gradient.iter_mut().for_each(|stats| stats.squash());
-        self.hessian.elements.iter_mut().for_each(|stats| stats.squash());
     }
 }

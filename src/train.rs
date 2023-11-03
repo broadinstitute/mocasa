@@ -63,11 +63,9 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let (join_handles, senders) =
         launch_workers(&model, &params, worker_sender, n_threads, &config.train);
     println!("Workers launched and burned in.");
-    let n_samples: usize = config.train.n_samples_per_round;
+    let n_samples: usize = config.train.n_samples_per_iteration;
     let mut reporter = Reporter::new();
-    const N_CYCLES_MIN: usize = 42;
-    const N_ITERATIONS_MIN: usize = 119;
-    let mut i_cycle: usize = 0;
+    let mut i_round: usize = 0;
     let mut i_iteration: usize = 0;
     let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
     loop {
@@ -82,22 +80,21 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             let params_new = create_param_estimates(&senders, &receiver, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
-            reporter.maybe_report(&summary, i_cycle, i_iteration, n_steps_per_iteration);
-            if i_iteration >= N_ITERATIONS_MIN && summary.inter_intra_ratios_mean < 1.0 {
+            if i_iteration >= config.train.n_iterations_per_round {
                 params = summary.params.clone();
-                if i_cycle >= N_CYCLES_MIN && summary.relative_errors_mean < config.train.precision {
+                if i_round >= config.train.n_rounds {
                     println!("Reached desired precision!");
                     reached_precision = true;
                 } else {
-                    i_cycle += 1;
-                    println!("Setting new parameters for cycle {} after {} iterations", i_cycle,
+                    i_round += 1;
+                    println!("Setting new parameters for round {} after {} iterations", i_round,
                              i_iteration);
                     i_iteration = 0;
                     for sender in senders.iter() {
                         sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                     }
                 }
-                reporter.report(&summary, i_cycle, i_iteration, n_steps_per_iteration);
+                reporter.report(&summary, i_round, i_iteration, n_steps_per_iteration);
                 reporter.reset_round_timer();
                 break;
             }

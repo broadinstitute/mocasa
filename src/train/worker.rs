@@ -34,7 +34,6 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
             }
             MessageToWorker::SetNewParams(params_new) => {
                 params = params_new;
-                stats.squash();
                 sampler.squash_stats();
                 sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
                 sampler.squash_stats();
