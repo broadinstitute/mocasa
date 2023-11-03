@@ -83,7 +83,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             if i_iteration >= config.train.n_iterations_per_round {
                 params = summary.params.clone();
                 if i_round >= config.train.n_rounds {
-                    println!("Reached desired precision!");
+                    println!("Done!");
                     reached_precision = true;
                 } else {
                     i_round += 1;
