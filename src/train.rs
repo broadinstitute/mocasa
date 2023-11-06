@@ -80,7 +80,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             let params_new = create_param_estimates(&senders, &receiver, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
-            if i_iteration >= config.train.n_iterations_per_round {
+            if i_iteration >= config.train.n_iterations_per_round
+                && summary.relative_errors_mean < 0.001 {
                 params = summary.params.clone();
                 if i_round >= config.train.n_rounds {
                     println!("Done!");
@@ -100,7 +101,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             }
         }
         if reached_precision {
-            break
+            break;
         }
     };
     shutdown_workers(join_handles, &senders);
@@ -109,7 +110,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
 
 fn create_param_estimates(senders: &[Sender<MessageToWorker>],
                           receiver: &Receiver<MessageToCentral>, n_samples: usize)
-    -> Result<Vec<Params>, Error> {
+                          -> Result<Vec<Params>, Error> {
     let n_threads = senders.len();
     for sender in senders.iter() {
         sender.send(MessageToWorker::TakeNSamples(n_samples))?;
