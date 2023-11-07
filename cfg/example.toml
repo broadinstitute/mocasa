@@ -20,6 +20,6 @@ n_steps_burn_in = 300000
 n_steps_per_sample = 10
 n_samples_per_iteration = 100
 n_iterations_per_round = 3000
-n_rounds = 1000
+n_rounds = 100
 
 

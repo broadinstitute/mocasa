@@ -80,8 +80,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             let params_new = create_param_estimates(&senders, &receiver, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
-            if i_iteration >= config.train.n_iterations_per_round
-                && summary.relative_errors_mean < 0.001 {
+            if i_iteration >= config.train.n_iterations_per_round {
                 params = summary.params.clone();
                 if i_round >= config.train.n_rounds {
                     println!("Done!");
