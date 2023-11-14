@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut};
 
 pub(crate) struct SymMatrix<T: Clone> {
-    pub(crate) size: usize,
     pub(crate) elements: Vec<T>,
 }
 
@@ -9,7 +8,7 @@ impl<T: Clone> SymMatrix<T> {
     pub(crate) fn new(element: T, size: usize) -> SymMatrix<T> {
         let n_elements = size * (size + 1) / 2;  //  Triangular number formula
         let elements: Vec<T> = vec![element; n_elements];
-        SymMatrix { size, elements }
+        SymMatrix { elements }
     }
     fn i_element(i1: usize, i2: usize) -> usize {
         let (i_min, i_max) = if i1 <= i2 { (i1, i2) } else { (i2, i1) };

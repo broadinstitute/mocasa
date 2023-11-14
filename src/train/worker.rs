@@ -15,7 +15,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
     let mut vars = model.initial_vars(&params);
     let rng = thread_rng();
     let meta = model.meta().clone();
-    let mut sampler = Sampler::<ThreadRng>::new(meta, rng, &params);
+    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, &params);
     let mut stats = ParamHessianStats::new(model.meta().clone());
     sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
     sampler.squash_stats();

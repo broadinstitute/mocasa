@@ -8,8 +8,6 @@ pub(crate) struct Reporter {
     time_since_last_report: SystemTime,
 }
 
-const TIME_BETWEEN_OPTIONAL_REPORTS_SECS: u64 = 10;
-
 impl Reporter {
     pub(crate) fn new() -> Reporter {
         let start_time = SystemTime::now();
@@ -19,14 +17,6 @@ impl Reporter {
     }
     pub(crate) fn reset_round_timer(&mut self) {
         self.start_time_round = SystemTime::now();
-    }
-    pub(crate) fn maybe_report(&mut self, summary: &Summary, i_cycle: usize, i_iteration: usize,
-                               n_steps_per_iteration: usize) {
-        let secs_passed =
-            self.time_since_last_report.elapsed().unwrap_or(Duration::ZERO).as_secs();
-        if secs_passed >= TIME_BETWEEN_OPTIONAL_REPORTS_SECS {
-            self.report(summary, i_cycle, i_iteration, n_steps_per_iteration)
-        }
     }
     pub(crate) fn report(&mut self, summary: &Summary, i_cycle: usize, i_iteration: usize,
                          n_steps_per_iteration: usize) {

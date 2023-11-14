@@ -47,27 +47,6 @@ impl ParamIndex {
         }
     }
     pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 1 }
-    pub(crate) fn from_ordinal(i_param: usize, n_traits: usize) -> Result<ParamIndex, Error> {
-        match i_param {
-            0 => { Ok(ParamIndex::Mu) }
-            _ => {
-                let i_trait = i_param - 1;
-                if i_trait < n_traits {
-                    Ok(ParamIndex::Beta(i_trait))
-                } else {
-                    let i_trait = i_trait - n_traits;
-                    if i_trait < n_traits {
-                        Ok(ParamIndex::Sigma(i_trait))
-                    } else {
-                        Err(Error::from(
-                            format!(
-                                "Found index {}, but for {} traits, there are only {} params.",
-                                i_param, n_traits, ParamIndex::n_params(n_traits))))
-                    }
-                }
-            }
-        }
-    }
     pub(crate) fn get_ordinal(&self, n_traits: usize) -> usize {
         match self {
             ParamIndex::Mu => { 0 }
@@ -98,15 +77,6 @@ impl Params {
             let sigmas: Vec<f64> = values[(1 + n_traits)..(1 + 2 * n_traits)].to_vec();
             Ok(Params { meta, mu, betas, sigmas })
         }
-    }
-    pub(crate) fn invalid_indices(&self) -> Vec<ParamIndex> {
-        let mut invalid_indices: Vec<ParamIndex> = Vec::new();
-        for (i_trait, sigma) in self.sigmas.iter().enumerate() {
-            if *sigma <= 0.0 {
-                invalid_indices.push(ParamIndex::Sigma(i_trait))
-            }
-        }
-        invalid_indices
     }
 }
 

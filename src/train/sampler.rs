@@ -9,14 +9,13 @@ use crate::train::var_trace::VarTracer;
 use crate::train::vars::{VarIndex, Vars};
 
 pub(crate) struct Sampler<R: Rng> {
-    meta: Arc<Meta>,
     metro_hast: MetroHast<R>,
     e_stats: Vec<VarTracer>,
     t_stats: Vec<Vec<VarTracer>>,
 }
 
 impl<R: Rng> Sampler<R> {
-    pub(crate) fn new(meta: Arc<Meta>, rng: R, params: &Params) -> Sampler<R> {
+    pub(crate) fn new(meta: &Arc<Meta>, rng: R, params: &Params) -> Sampler<R> {
         let n_data_points = meta.n_data_points();
         let n_traits = meta.n_traits();
         let e_stats =
@@ -25,7 +24,7 @@ impl<R: Rng> Sampler<R> {
             t_stats_new(n_data_points, n_traits, &params.betas,
                         &params.sigmas);
         let metro_hast = MetroHast::new(rng);
-        Sampler { meta, e_stats, t_stats, metro_hast }
+        Sampler { e_stats, t_stats, metro_hast }
     }
     pub(crate) fn sample_n(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars,
                            n_steps: usize) {
