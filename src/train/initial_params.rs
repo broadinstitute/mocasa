@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::math::stats::Stats;
 use crate::train::model::TrainModel;
-use crate::train::params;
 use crate::train::params::Params;
 
 pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Error> {
@@ -29,7 +28,9 @@ pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Erro
     means.iter().for_each(|mean| e_stats.add(*mean));
     let mu =
         e_stats.mean().ok_or_else(|| { Error::from("Need at least one trait.") })?;
-    let betas: Vec<f64> =
-        means.iter().map(|mean| mean / (mu + params::TAU * mu.signum())).collect();
-    Ok(Params { meta, mu, betas, sigmas })
+    let tau =
+        e_stats.variance().ok_or_else(|| { Error::from("Need at least one trait.") })?
+            .sqrt();
+    let betas: Vec<f64> = means.iter().map(|mean| mean / (mu + tau * mu.signum())).collect();
+    Ok(Params { meta, mu, tau, betas, sigmas })
 }

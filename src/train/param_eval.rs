@@ -63,6 +63,9 @@ impl ParamEval {
     pub(crate) fn gradient(&self, index: ParamIndex) -> f64 {
         match index {
             ParamIndex::Mu => { self.dmu }
+            ParamIndex::Tau => {
+                todo!()  //  Won't fix, since this will all be obsolete.
+            }
             ParamIndex::Beta(i_trait) => { self.dbetas[i_trait] }
             ParamIndex::Sigma(i_trait) => { self.dsigmas[i_trait] }
         }

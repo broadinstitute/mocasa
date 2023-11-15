@@ -21,7 +21,7 @@ impl<R: Rng> Sampler<R> {
         let metro_hast = MetroHast::new(rng);
         let n_data_points = meta.n_data_points();
         let n_traits = meta.n_traits();
-        let var_stats = VarStats::new(meta);
+        let var_stats = VarStats::new(meta.clone());
         let e_stats =
             e_stats_new(n_data_points, params.mu, params::TAU);
         let t_stats =
