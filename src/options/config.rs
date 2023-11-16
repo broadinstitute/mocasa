@@ -12,7 +12,6 @@ pub(crate) struct Config {
 pub(crate) struct TrainConfig {
     pub(crate) ids_file: String,
     pub(crate) n_steps_burn_in: usize,
-    pub(crate) n_steps_per_sample: usize,
     pub(crate) n_samples_per_iteration: usize,
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,

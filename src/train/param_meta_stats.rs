@@ -100,8 +100,8 @@ fn unwrap_or_not_enough_data(value: Option<f64>) -> Result<f64, Error> {
     value.ok_or_else(|| Error::from("Not enough data"))
 }
 
-fn str12<T: Display>(item: T) -> String {
-    format!("{}            ", item)[0..12].to_string()
+fn str18<T: Display>(item: T) -> String {
+    format!("{}                  ", item)[0..18].to_string()
 }
 
 impl Display for Summary {
@@ -111,8 +111,8 @@ impl Display for Summary {
         writeln!(f, "Relative errors mean: {}", self.relative_errors_mean)?;
         writeln!(f, "Inter/intra ratios mean: {}", self.inter_intra_ratios_mean.sqrt())?;
         writeln!(f, "{} {} {} {} {} {}",
-                 str12("param"), str12("value"), str12("rel.err."),
-                 str12("inter_chains"), str12("intra_chains"), str12("ratio"))?;
+                 str18("param"), str18("value"), str18("rel.err."),
+                 str18("inter_chains"), str18("intra_chains"), str18("ratio"))?;
         for (i, index) in ParamIndex::all(n_traits).enumerate() {
             let param = self.params[index];
             let rel_err = self.relative_errors[i];
@@ -120,9 +120,9 @@ impl Display for Summary {
             let intra_chain_std_dev = self.intra_chain_vars[i].sqrt();
             let ratio = self.inter_intra_ratios[i];
             writeln!(f, "{} {} {} {} {} {}",
-                     str12(index.with_trait_name(&self.meta.trait_names)),
-                     str12(param), str12(rel_err), str12(inter_chain_std_dev),
-                     str12(intra_chain_std_dev), str12(ratio))?
+                     str18(index.with_trait_name(&self.meta.trait_names)),
+                     str18(param), str18(rel_err), str18(inter_chain_std_dev),
+                     str18(intra_chain_std_dev), str18(ratio))?
         }
         Ok(())
     }

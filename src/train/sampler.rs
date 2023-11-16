@@ -77,6 +77,7 @@ impl<R: Rng> Sampler<R> {
             t_stats.iter_mut().for_each(|t_stat| t_stat.soften_stats())
         )
     }
+    pub(crate) fn var_stats(&self) -> &VarStats { &self.var_stats }
 }
 
 fn e_stats_new(n_data_points: usize, mean_estimate: f64, std_dev_estimate: f64) -> Vec<VarTracer> {

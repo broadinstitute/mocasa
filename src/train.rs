@@ -1,9 +1,7 @@
 mod model;
-mod param_stats;
 mod sampler;
 mod params;
 mod vars;
-mod param_eval;
 mod worker;
 pub(crate) mod param_meta_stats;
 mod var_trace;
@@ -33,11 +31,11 @@ pub(crate) enum MessageToWorker {
 
 pub(crate) struct MessageToCentral {
     i_thread: usize,
-    params: Result<Params, Error>,
+    params: Params,
 }
 
 impl MessageToCentral {
-    pub(crate) fn new(i_thread: usize, params: Result<Params, Error>) -> MessageToCentral {
+    pub(crate) fn new(i_thread: usize, params: Params) -> MessageToCentral {
         MessageToCentral { i_thread, params }
     }
 }
@@ -68,7 +66,6 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let mut reporter = Reporter::new();
     let mut i_round: usize = 0;
     let mut i_iteration: usize = 0;
-    let n_steps_per_iteration = config.train.n_steps_per_sample * n_samples;
     loop {
         let params0 = create_param_estimates(&senders, &receiver, n_samples)?;
         let params1 = create_param_estimates(&senders, &receiver, n_samples)?;
@@ -95,7 +92,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
                         sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                     }
                 }
-                reporter.report(&summary, i_round, i_iteration, n_steps_per_iteration);
+                reporter.report(&summary, i_round, i_iteration, n_samples);
                 reporter.reset_round_timer();
                 break;
             }
@@ -115,7 +112,7 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
     for sender in senders.iter() {
         sender.send(MessageToWorker::TakeNSamples(n_samples))?;
     }
-    let mut param_estimates: Vec<Option<Result<Params, Error>>> =
+    let mut param_estimates: Vec<Option<Params>> =
         (0..n_threads).map(|_| None).collect();
     while param_estimates.iter().any(|param_opt| param_opt.is_none()) {
         let receive_result =
@@ -138,7 +135,7 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
                 Err(Error::from("Did not get parameter estimates from all workers"))?
             }
             Some(param_result) => {
-                params.push(param_result?)
+                params.push(param_result)
             }
         }
     }

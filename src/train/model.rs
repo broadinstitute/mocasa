@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use crate::data::{Meta, TrainData};
 use crate::math::matrix::Matrix;
-use crate::train::param_eval::ParamEval;
 use crate::train::params;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
@@ -57,9 +56,6 @@ impl TrainModel {
             let o_term = ((t_new - o).powi(2) - (t_old - o).powi(2)) / s.powi(2);
             (-0.5 * (t_term + o_term)).exp()
         }
-    }
-    pub(crate) fn param_eval(&self, params: &Params, vars: &Vars) -> ParamEval {
-        ParamEval::new(self, params, vars)
     }
 }
 

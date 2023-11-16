@@ -5,7 +5,6 @@ use rand::thread_rng;
 use crate::options::config::TrainConfig;
 use crate::train::{MessageToCentral, MessageToWorker};
 use crate::train::model::TrainModel;
-use crate::train::param_stats::ParamHessianStats;
 use crate::train::params::Params;
 use crate::train::sampler::Sampler;
 
@@ -16,20 +15,16 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
     let rng = thread_rng();
     let meta = model.meta().clone();
     let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, &params);
-    let mut stats = ParamHessianStats::new(model.meta().clone());
     sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
     sampler.squash_stats();
     loop {
         let in_message = receiver.recv().unwrap();
         match in_message {
             MessageToWorker::TakeNSamples(n_samples) => {
-                for _ in 0..n_samples {
-                    sampler.sample_n(&model, &params, &mut vars, config.n_steps_per_sample);
-                    let param_eval = model.param_eval(&params, &vars);
-                    stats.survey_param_eval(&param_eval);
-                }
+                sampler.sample_n(&model, &params, &mut vars, n_samples);
+                let params_new = sampler.var_stats().compute_new_params();
                 sender
-                    .send(MessageToCentral::new(i_thread, stats.estimate_params(&params)))
+                    .send(MessageToCentral::new(i_thread, params_new))
                     .unwrap();
             }
             MessageToWorker::SetNewParams(params_new) => {
@@ -39,7 +34,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
                 sampler.squash_stats();
             }
             MessageToWorker::Shutdown => {
-                break
+                break;
             }
         }
     }

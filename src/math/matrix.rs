@@ -2,7 +2,6 @@ use std::ops::{Index, IndexMut};
 
 #[derive(Clone)]
 pub(crate) struct Matrix {
-    pub(crate) n_rows: usize,
     pub(crate) n_cols: usize,
     pub(crate) elements: Vec<f64>,
 }
@@ -20,7 +19,7 @@ impl Matrix {
             }
             elements
         };
-        Matrix { n_rows, n_cols, elements }
+        Matrix { n_cols, elements }
     }
 }
 

@@ -1,5 +1,4 @@
 use std::fmt::{Display, Formatter};
-use std::iter::once;
 use std::ops::Index;
 use std::sync::Arc;
 use crate::data::Meta;
@@ -30,26 +29,7 @@ impl ParamIndex {
             .chain((0..n_traits).map(ParamIndex::Beta))
             .chain((0..n_traits).map(ParamIndex::Sigma))
     }
-    pub(crate) fn to(index_max: ParamIndex, n_traits: usize) -> Box<dyn Iterator<Item=ParamIndex>> {
-        match index_max {
-            ParamIndex::Mu => { Box::new(once(ParamIndex::Mu)) }
-            ParamIndex::Tau => { Box::new(vec![ParamIndex::Mu, ParamIndex::Tau].into_iter()) }
-            ParamIndex::Beta(i_trait_max) => {
-                let iter =
-                    vec![ParamIndex::Mu, ParamIndex::Tau].into_iter()
-                        .chain((0..=i_trait_max).map(ParamIndex::Beta));
-                Box::new(iter)
-            }
-            ParamIndex::Sigma(i_trait_max) => {
-                let iter =
-                    vec![ParamIndex::Mu, ParamIndex::Tau].into_iter()
-                        .chain((0..n_traits).map(ParamIndex::Beta))
-                        .chain((0..=i_trait_max).map(ParamIndex::Sigma));
-                Box::new(iter)
-            }
-        }
-    }
-    pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 1 }
+    pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 2 }
     pub(crate) fn get_ordinal(&self, n_traits: usize) -> usize {
         match self {
             ParamIndex::Mu => { 0 }
