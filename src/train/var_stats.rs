@@ -78,7 +78,8 @@ impl VarStats {
                 sum_for_sigma +=
                     mean_t2_j_i - 2.0 * betas[i] * mean_e_t_j_i + beta.powi(2) * mean_e2_j_i
             }
-            sigmas.push(sum_for_sigma / n_f)
+            let sigma = (sum_for_sigma / n_data_points_f).sqrt();
+            sigmas.push(sigma)
         }
         Params { meta, mu, tau, betas, sigmas }
     }
