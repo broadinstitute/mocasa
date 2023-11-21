@@ -3,22 +3,32 @@ use rand_distr::Normal;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 use rand_distr::Distribution;
+use crate::data::TrainData;
 
-pub(crate) fn draw_e<R: Rng>(rng: &mut R, vars: &Vars, params: &Params, i_data_point: usize) -> f64 {
+pub(crate) fn draw_e<R: Rng>(rng: &mut R, vars: &Vars, params: &Params, i_data_point: usize)
+                             -> f64 {
     let n_traits = params.meta.n_traits();
     let tau = params.tau;
-    let inv_sig_sum: f64 = 1.0 / tau.powi(2) + (0..n_traits).map(|i_trait| {
+    let inv_var_sum: f64 = 1.0 / tau.powi(2) + (0..n_traits).map(|i_trait| {
         (params.betas[i_trait] / params.sigmas[i_trait]).powi(2)
     }).sum::<f64>();
-    let variance = 1.0 / inv_sig_sum;
+    let variance = 1.0 / inv_var_sum;
     let std_dev = variance.sqrt();
     let frac_sum = params.mu / tau.powi(2) + (0..n_traits).map(|i_trait| {
-        params.betas[i_trait]*vars.ts[i_data_point][i_trait] / params.sigmas[i_trait].powi(2)
+        params.betas[i_trait] * vars.ts[i_data_point][i_trait] / params.sigmas[i_trait].powi(2)
     }).sum::<f64>();
     let mean = variance * frac_sum;
     Normal::new(mean, std_dev).unwrap().sample(rng)
 }
 
-pub(crate) fn make_t_gibbs(vars: &Vars, params: &Params, i_trait: usize) -> Normal<f64> {
-    todo!()
+pub(crate) fn draw_t<R: Rng>(rng: &mut R, data: TrainData, vars: &Vars, params: &Params,
+                             i_data_point: usize, i_trait: usize) -> f64 {
+    let mu_e = params.betas[i_trait] * vars.es[i_data_point];
+    let var_e = params.sigmas[i_trait].powi(2);
+    let mu_o = data.betas[i_data_point][i_trait];
+    let var_o = data.ses[i_data_point][i_trait].powi(2);
+    let variance = 1.0 / (1.0 / var_e + 1.0 / var_o);
+    let std_dev = variance.sqrt();
+    let mean = variance * (mu_e / var_e + mu_o / var_o);
+    Normal::new(mean, std_dev).unwrap().sample(rng)
 }
