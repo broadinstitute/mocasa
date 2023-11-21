@@ -14,9 +14,8 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
     let mut vars = model.initial_vars(&params);
     let rng = thread_rng();
     let meta = model.meta().clone();
-    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, &params);
+    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
     sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
-    sampler.squash_stats();
     loop {
         let in_message = receiver.recv().unwrap();
         match in_message {
@@ -29,9 +28,7 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
             }
             MessageToWorker::SetNewParams(params_new) => {
                 params = params_new;
-                sampler.squash_stats();
                 sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
-                sampler.squash_stats();
             }
             MessageToWorker::Shutdown => {
                 break;

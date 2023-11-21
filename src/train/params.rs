@@ -4,8 +4,6 @@ use std::sync::Arc;
 use crate::data::Meta;
 use crate::error::Error;
 
-pub(crate) const TAU: f64 = 1.0;
-
 #[derive(Clone)]
 pub(crate) struct Params {
     pub(crate) meta: Arc<Meta>,

@@ -4,7 +4,6 @@ mod params;
 mod vars;
 mod worker;
 pub(crate) mod param_meta_stats;
-mod var_trace;
 mod initial_params;
 pub(crate) mod var_stats;
 mod gibbs;

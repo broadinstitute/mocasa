@@ -9,7 +9,6 @@ mod train;
 mod classify;
 mod data;
 mod math;
-mod mcmc;
 mod util;
 mod report;
 
