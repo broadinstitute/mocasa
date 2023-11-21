@@ -16,7 +16,7 @@ file = "/home/oliverr/phenet/gwas/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
 
 [train]
 ids_file = "/home/oliverr/phenet/training_var_list"
-n_steps_burn_in = 30000
-n_samples_per_iteration = 300
+n_steps_burn_in = 40000
+n_samples_per_iteration = 400
 n_iterations_per_round = 1000
 n_rounds = 100
