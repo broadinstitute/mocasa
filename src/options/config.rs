@@ -4,8 +4,21 @@ use crate::error::Error;
 
 #[derive(Deserialize)]
 pub(crate) struct Config {
+    pub(crate) files: FilesConfig,
     pub(crate) gwas: Vec<GwasConfig>,
     pub(crate) train: TrainConfig,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct GwasConfig {
+    pub(crate) name: String,
+    pub(crate) file: String
+}
+
+#[derive(Deserialize)]
+pub(crate) struct FilesConfig {
+    pub(crate) trace: Option<String>,
+    pub(crate) params: String
 }
 
 #[derive(Deserialize, Clone)]
@@ -15,12 +28,6 @@ pub(crate) struct TrainConfig {
     pub(crate) n_samples_per_iteration: usize,
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct GwasConfig {
-    pub(crate) name: String,
-    pub(crate) file: String
 }
 
 pub(crate) fn load_config(file: &str) -> Result<Config, Error> {

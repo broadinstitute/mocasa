@@ -14,6 +14,10 @@ file = "/home/oliverr/phenet/gwas/aligned_adj_tg.Graham_2021_lipids_EU.TG.txt"
 name = "t2d"
 file = "/home/oliverr/phenet/gwas/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
 
+[files]
+trace = "/mnt/c/Users/oliverr/mocasa/test/trace"
+params = "/mnt/c/Users/oliverr/mocasa/test/params"
+
 [train]
 ids_file = "/home/oliverr/phenet/training_var_list"
 n_steps_burn_in = 20000

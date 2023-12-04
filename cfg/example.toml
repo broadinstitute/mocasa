@@ -14,6 +14,10 @@ file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate
 name = "t2d"
 file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_adj/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
 
+[files]
+trace = "/humgen/diabetes2/users/oliverr/mocasa/test/trace"
+params = "/humgen/diabetes2/users/oliverr/mocasa/test/params"
+
 [train]
 ids_file = "/humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/02.curate/output/aligned_lipo_var_ids/aligned_lipo_var_ids_LPLremoved.txt"
 n_steps_burn_in = 20000
