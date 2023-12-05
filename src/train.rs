@@ -22,7 +22,7 @@ use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
-use crate::train::params::{ParamIndex, Params};
+use crate::train::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_chain;
 
@@ -57,11 +57,11 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 
 fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let model = Arc::new(TrainModel::new(data));
-    let n_params = ParamIndex::n_params(model.meta().n_traits());
+    let n_traits = model.meta().n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
-            Some(ParamTraceFileWriter::new(path, n_params)?)
+            Some(ParamTraceFileWriter::new(path, n_traits)?)
         } else {
             None
         };

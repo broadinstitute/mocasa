@@ -10,11 +10,11 @@ pub(crate) struct ParamTraceFileWriter {
 }
 
 impl ParamTraceFileWriter {
-    pub(crate) fn new(path: PathBuf, n_params: usize) -> Result<ParamTraceFileWriter, Error> {
+    pub(crate) fn new(path: PathBuf, n_traits: usize) -> Result<ParamTraceFileWriter, Error> {
         let index: usize = 0;
         let mut writer = BufWriter::new(File::create(&path)?);
         write!(writer, "index")?;
-        for param_index in ParamIndex::all(n_params) {
+        for param_index in ParamIndex::all(n_traits) {
             write!(writer, "\t{}", param_index)?;
         }
         writeln!(writer)?;
@@ -22,11 +22,11 @@ impl ParamTraceFileWriter {
     }
     pub(crate) fn write(&mut self, params: &Params) -> Result<(), Error> {
         self.index += 1;
-        let n_params = ParamIndex::n_params(params.meta.n_traits());
+        let n_traits = params.meta.n_traits();
         let mut writer =
             BufWriter::new(File::options().append(true).open(&self.path)?);
         write!(writer, "{}", self.index)?;
-        for param_index in ParamIndex::all(n_params) {
+        for param_index in ParamIndex::all(n_traits) {
             write!(writer, "\t{}", params[param_index])?;
         }
         writeln!(writer)?;
