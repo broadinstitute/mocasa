@@ -7,8 +7,10 @@ pub(crate) mod param_meta_stats;
 mod initial_params;
 pub(crate) mod var_stats;
 mod gibbs;
+pub(crate) mod trace_file;
 
 use std::cmp;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::thread::{available_parallelism, JoinHandle, spawn};
@@ -20,7 +22,8 @@ use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
-use crate::train::params::Params;
+use crate::train::params::{ParamIndex, Params};
+use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_chain;
 
 pub(crate) enum MessageToWorker {
@@ -44,7 +47,9 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_training_data(config)?;
     println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
-    if !dry {
+    if dry {
+        println!("User picked dry run only, so doing nothing.")
+    } else {
         train(data, config)?;
     }
     Ok(())
@@ -52,6 +57,14 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 
 fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let model = Arc::new(TrainModel::new(data));
+    let n_params = ParamIndex::n_params(model.meta().n_traits());
+    let mut params_trace_writer =
+        if let Some(path) = &config.files.trace {
+            let path = PathBuf::from(path);
+            Some(ParamTraceFileWriter::new(path, n_params)?)
+        } else {
+            None
+        };
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     let (worker_sender, receiver) =
         channel::<MessageToCentral>();
@@ -80,6 +93,9 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             let summary = param_meta_stats.summary()?;
             if i_iteration >= config.train.n_iterations_per_round {
                 params = summary.params.clone();
+                if let Some(params_trace_writer) = &mut params_trace_writer {
+                    params_trace_writer.write(&params)?;
+                }
                 if i_round >= config.train.n_rounds {
                     println!("Done!");
                     reached_precision = true;
