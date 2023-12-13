@@ -4,7 +4,7 @@ use crate::train::model::TrainModel;
 use crate::train::params::Params;
 
 pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Error> {
-    let meta = model.data.meta.clone();
+    let meta = model.data.metaphor.meta.clone();
     let n_data_points = meta.n_data_points();
     let n_traits = meta.n_traits();
     let mut data_stats: Vec<Stats> = (0..n_traits).map(|_| Stats::new()).collect();

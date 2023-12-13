@@ -11,13 +11,18 @@ use crate::error::Error;
 use crate::math::matrix::Matrix;
 use crate::options::config::Config;
 
+#[derive(Clone)]
+pub(crate) struct Metaphor {
+    pub(crate) meta: Arc<Meta>,
+}
+
 pub(crate) struct Meta {
     pub(crate) trait_names: Vec<String>,
     pub(crate) var_ids: Vec<String>,
 }
 
 pub(crate) struct TrainData {
-    pub(crate) meta: Arc<Meta>,
+    pub(crate) metaphor: Metaphor,
     pub(crate) betas: Matrix,
     pub(crate) ses: Matrix,
 }
@@ -33,8 +38,8 @@ impl Meta {
 }
 
 impl TrainData {
-    pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points() }
-    pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
+    pub(crate) fn n_data_points(&self) -> usize { self.metaphor.meta.n_data_points() }
+    pub(crate) fn n_traits(&self) -> usize { self.metaphor.meta.n_traits() }
 }
 
 impl Display for BetaSe {
@@ -46,13 +51,13 @@ impl Display for BetaSe {
 impl Display for TrainData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", gwas::cols::VAR_ID)?;
-        for trait_name in &self.meta.trait_names {
+        for trait_name in &self.metaphor.meta.trait_names {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
         writeln!(f)?;
-        for (i_data_point, var_id) in self.meta.var_ids.iter().enumerate() {
+        for (i_data_point, var_id) in self.metaphor.meta.var_ids.iter().enumerate() {
             write!(f, "{}", var_id)?;
-            for (i_trait, _) in self.meta.trait_names.iter().enumerate() {
+            for (i_trait, _) in self.metaphor.meta.trait_names.iter().enumerate() {
                 write!(f, "\t{}\t{}", self.betas[i_data_point][i_trait],
                        self.ses[i_data_point][i_trait])?
             }
@@ -84,7 +89,8 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
         }
     }
     let meta = Arc::new(Meta { trait_names, var_ids });
-    Ok(TrainData { meta, betas, ses })
+    let metaphor = Metaphor { meta };
+    Ok(TrainData { metaphor, betas, ses })
 }
 
 fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
