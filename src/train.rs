@@ -45,7 +45,7 @@ impl MessageToCentral {
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_training_data(config)?;
-    println!("Loaded data for {} variants", data.metaphor.meta.n_data_points());
+    println!("Loaded data for {} variants", data.metaphor.n_data_points());
     println!("{}", data);
     if dry {
         println!("User picked dry run only, so doing nothing.")

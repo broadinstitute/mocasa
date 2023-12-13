@@ -32,14 +32,21 @@ pub(crate) struct BetaSe {
     pub(crate) se: f64,
 }
 
+impl Metaphor {
+    pub(crate) fn var_ids(&self) -> &[String] { &self.meta.var_ids }
+    pub(crate) fn trait_names(&self) -> &[String] { &self.meta.trait_names }
+    pub(crate) fn n_data_points(&self) -> usize { self.var_ids().len() }
+    pub(crate) fn n_traits(&self) -> usize { self.trait_names().len() }
+}
+
 impl Meta {
     pub(crate) fn n_data_points(&self) -> usize { self.var_ids.len() }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
 }
 
 impl TrainData {
-    pub(crate) fn n_data_points(&self) -> usize { self.metaphor.meta.n_data_points() }
-    pub(crate) fn n_traits(&self) -> usize { self.metaphor.meta.n_traits() }
+    pub(crate) fn n_data_points(&self) -> usize { self.metaphor.n_data_points() }
+    pub(crate) fn n_traits(&self) -> usize { self.metaphor.n_traits() }
 }
 
 impl Display for BetaSe {
@@ -51,13 +58,13 @@ impl Display for BetaSe {
 impl Display for TrainData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", gwas::cols::VAR_ID)?;
-        for trait_name in &self.metaphor.meta.trait_names {
+        for trait_name in self.metaphor.trait_names() {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
         writeln!(f)?;
-        for (i_data_point, var_id) in self.metaphor.meta.var_ids.iter().enumerate() {
+        for (i_data_point, var_id) in self.metaphor.var_ids().iter().enumerate() {
             write!(f, "{}", var_id)?;
-            for (i_trait, _) in self.metaphor.meta.trait_names.iter().enumerate() {
+            for (i_trait, _) in self.metaphor.trait_names().iter().enumerate() {
                 write!(f, "\t{}\t{}", self.betas[i_data_point][i_trait],
                        self.ses[i_data_point][i_trait])?
             }
