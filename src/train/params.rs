@@ -1,11 +1,12 @@
 use std::fmt::{Display, Formatter};
 use std::ops::Index;
-use crate::data::Metaphor;
+use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use crate::error::Error;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Params {
-    pub(crate) metaphor: Metaphor,
+    pub(crate) trait_names: Arc<Vec<String>>,
     pub(crate) mu: f64,
     pub(crate) tau: f64,
     pub(crate) betas: Vec<f64>,
@@ -46,8 +47,9 @@ impl ParamIndex {
 }
 
 impl Params {
-    pub(crate) fn from_vec(values: &[f64], metaphor: Metaphor) -> Result<Params, Error> {
-        let n_traits = metaphor.n_traits();
+    pub(crate) fn from_vec(values: &[f64], trait_names: Arc<Vec<String>>)
+                           -> Result<Params, Error> {
+        let n_traits = trait_names.len();
         let n_values_needed = ParamIndex::n_params(n_traits);
         if values.len() != n_values_needed {
             Err(Error::from(format!("Need {} values for {} traits, but got {}.",
@@ -57,9 +59,10 @@ impl Params {
             let tau = values[1];
             let betas: Vec<f64> = values[2..(2 + n_traits)].to_vec();
             let sigmas: Vec<f64> = values[(2 + n_traits)..(2 + 2 * n_traits)].to_vec();
-            Ok(Params { metaphor, mu, tau, betas, sigmas })
+            Ok(Params { trait_names, mu, tau, betas, sigmas })
         }
     }
+    pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
 }
 
 impl Index<ParamIndex> for Params {
@@ -78,7 +81,7 @@ impl Index<ParamIndex> for Params {
 impl Display for Params {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "mu = {}", self.mu)?;
-        for ((name, beta), sigma) in self.metaphor.trait_names().iter()
+        for ((name, beta), sigma) in self.trait_names.iter()
             .zip(self.betas.iter()).zip(self.sigmas.iter()) {
             writeln!(f, "beta_{} = {}", name, beta)?;
             writeln!(f, "sigma_{} = {}", name, sigma)?;

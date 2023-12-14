@@ -12,6 +12,7 @@ mod names {
     pub const SEND: &str = "send error";
     pub const RECEIVE_TIMEOUT: &str = "receive timeout error";
     pub const SYSTEM_TIME: &str = "system time error";
+    pub const SERDE_JSON: &str = "Serde JSON";
 }
 
 pub enum ErrorKind {
@@ -21,7 +22,8 @@ pub enum ErrorKind {
     ParseFloat,
     Send,
     ReceiveTimeout,
-    SystemTime
+    SystemTime,
+    SerdeJson,
 }
 
 pub struct Error {
@@ -83,6 +85,13 @@ impl From<SystemTimeError> for Error {
     }
 }
 
+impl From<serde_json::Error> for Error {
+    fn from(serde_json_error: serde_json::Error) -> Self {
+        let message = serde_json_error.to_string();
+        Error::new(ErrorKind::SerdeJson, message)
+    }
+}
+
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -93,6 +102,7 @@ impl ErrorKind {
             ErrorKind::Send => { names::SEND }
             ErrorKind::ReceiveTimeout => { names::RECEIVE_TIMEOUT }
             ErrorKind::SystemTime => { names::SYSTEM_TIME }
+            ErrorKind::SerdeJson => { names::SERDE_JSON }
         }
     }
 }

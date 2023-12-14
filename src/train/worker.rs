@@ -13,8 +13,8 @@ pub(crate) fn train_chain(model: Arc<TrainModel>, mut params: Params,
                           i_thread: usize, config: &TrainConfig) {
     let mut vars = model.initial_vars(&params);
     let rng = thread_rng();
-    let metaphor = model.metaphor().clone();
-    let mut sampler = Sampler::<ThreadRng>::new(&metaphor, rng);
+    let meta = model.meta().clone();
+    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
     sampler.sample_n(&model, &params, &mut vars, config.n_steps_burn_in);
     loop {
         let in_message = receiver.recv().unwrap();

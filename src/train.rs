@@ -10,6 +10,8 @@ mod gibbs;
 pub(crate) mod trace_file;
 
 use std::cmp;
+use std::fs::File;
+use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
@@ -45,7 +47,7 @@ impl MessageToCentral {
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_training_data(config)?;
-    println!("Loaded data for {} variants", data.metaphor.n_data_points());
+    println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
     if dry {
         println!("User picked dry run only, so doing nothing.")
@@ -55,9 +57,9 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     Ok(())
 }
 
-fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
+fn train(data: TrainData, config: &Config) -> Result<(), Error> {
     let model = Arc::new(TrainModel::new(data));
-    let n_traits = model.metaphor().n_traits();
+    let n_traits = model.meta().n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
@@ -83,8 +85,8 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         let params0 = create_param_estimates(&senders, &receiver, n_samples)?;
         let params1 = create_param_estimates(&senders, &receiver, n_samples)?;
         let mut param_meta_stats =
-            ParamMetaStats::new(n_threads, params.metaphor, &params0,
-                                &params1);
+            ParamMetaStats::new(n_threads, params.trait_names.clone(),
+                                &params0, &params1);
         let mut reached_precision = false;
         loop {
             i_iteration += 1;
@@ -117,8 +119,9 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
             break;
         }
     };
+    write_params_to_file(&params, config.files.params.as_str())?;
     shutdown_workers(join_handles, &senders);
-    Ok(params)
+    Ok(())
 }
 
 fn create_param_estimates(senders: &[Sender<MessageToWorker>],
@@ -193,4 +196,11 @@ fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<Message
             Err(_) => { println!("Worker {} has crashed.", i) }
         }
     }
+}
+
+fn write_params_to_file(params: &Params, output_file: &str) -> Result<(), Error> {
+    let mut writer = BufWriter::new(File::create(output_file)?);
+    let json = serde_json::to_string(params)?;
+    writeln!(writer, "{}", json)?;
+    Ok(())
 }

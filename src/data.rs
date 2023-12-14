@@ -12,13 +12,13 @@ use crate::math::matrix::Matrix;
 use crate::options::config::Config;
 
 #[derive(Clone)]
-pub(crate) struct Metaphor {
+pub(crate) struct Meta {
     pub(crate) trait_names: Arc<Vec<String>>,
     pub(crate) var_ids: Arc<Vec<String>>,
 }
 
 pub(crate) struct TrainData {
-    pub(crate) metaphor: Metaphor,
+    pub(crate) meta: Meta,
     pub(crate) betas: Matrix,
     pub(crate) ses: Matrix,
 }
@@ -28,9 +28,9 @@ pub(crate) struct BetaSe {
     pub(crate) se: f64,
 }
 
-impl Metaphor {
-    pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>) -> Metaphor {
-        Metaphor { trait_names, var_ids }
+impl Meta {
+    pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>) -> Meta {
+        Meta { trait_names, var_ids }
     }
     pub(crate) fn var_ids(&self) -> &[String] { &self.var_ids }
     pub(crate) fn trait_names(&self) -> &[String] { &self.trait_names }
@@ -39,8 +39,8 @@ impl Metaphor {
 }
 
 impl TrainData {
-    pub(crate) fn n_data_points(&self) -> usize { self.metaphor.n_data_points() }
-    pub(crate) fn n_traits(&self) -> usize { self.metaphor.n_traits() }
+    pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points() }
+    pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
 }
 
 impl Display for BetaSe {
@@ -52,13 +52,13 @@ impl Display for BetaSe {
 impl Display for TrainData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", gwas::cols::VAR_ID)?;
-        for trait_name in self.metaphor.trait_names() {
+        for trait_name in self.meta.trait_names() {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
         writeln!(f)?;
-        for (i_data_point, var_id) in self.metaphor.var_ids().iter().enumerate() {
+        for (i_data_point, var_id) in self.meta.var_ids().iter().enumerate() {
             write!(f, "{}", var_id)?;
-            for (i_trait, _) in self.metaphor.trait_names().iter().enumerate() {
+            for (i_trait, _) in self.meta.trait_names().iter().enumerate() {
                 write!(f, "\t{}\t{}", self.betas[i_data_point][i_trait],
                        self.ses[i_data_point][i_trait])?
             }
@@ -89,8 +89,8 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
             ses[i_data_point][i_trait] = beta_se[i_trait].se;
         }
     }
-    let metaphor = Metaphor::new(trait_names.into(), var_ids.into());
-    Ok(TrainData { metaphor, betas, ses })
+    let meta = Meta::new(trait_names.into(), var_ids.into());
+    Ok(TrainData { meta, betas, ses })
 }
 
 fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
