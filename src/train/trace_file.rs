@@ -22,7 +22,7 @@ impl ParamTraceFileWriter {
     }
     pub(crate) fn write(&mut self, params: &Params) -> Result<(), Error> {
         self.index += 1;
-        let n_traits = params.meta.n_traits();
+        let n_traits = params.metaphor.n_traits();
         let mut writer =
             BufWriter::new(File::options().append(true).open(&self.path)?);
         write!(writer, "{}", self.index)?;

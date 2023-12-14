@@ -1,11 +1,10 @@
-use std::sync::Arc;
-use crate::data::Meta;
+use crate::data::Metaphor;
 use crate::math::matrix::Matrix;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 
 pub(crate) struct VarStats {
-    meta: Arc<Meta>,
+    metaphor: Metaphor,
     n: usize,
     e_sums: Vec<f64>,
     e2_sums: Vec<f64>,
@@ -14,20 +13,20 @@ pub(crate) struct VarStats {
 }
 
 impl VarStats {
-    pub(crate) fn new(meta: Arc<Meta>) -> VarStats {
+    pub(crate) fn new(metaphor: Metaphor) -> VarStats {
         let n: usize = 0;
-        let n_data_points = meta.n_data_points();
-        let n_traits = meta.n_traits();
+        let n_data_points = metaphor.n_data_points();
+        let n_traits = metaphor.n_traits();
         let e_sums: Vec<f64> = vec![0.0; n_data_points];
         let e2_sums: Vec<f64> = vec![0.0; n_data_points];
         let e_t_sums: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| 0.0);
         let t2_sums: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| 0.0);
-        VarStats { meta, n, e_sums, e2_sums, e_t_sums, t2_sums }
+        VarStats { metaphor, n, e_sums, e2_sums, e_t_sums, t2_sums }
     }
     pub(crate) fn add(&mut self, vars: &Vars) {
         self.n += 1;
-        let n_data_points = self.meta.n_data_points();
-        let n_traits = self.meta.n_traits();
+        let n_data_points = self.metaphor.n_data_points();
+        let n_traits = self.metaphor.n_traits();
         for j in 0..n_data_points {
             let e_j = vars.es[j];
             self.e_sums[j] += e_j;
@@ -40,11 +39,11 @@ impl VarStats {
         }
     }
     pub(crate) fn compute_new_params(&self) -> Params {
-        let meta = self.meta.clone();
+        let metaphor = self.metaphor.clone();
         let n_f = self.n as f64;
-        let n_data_points = meta.n_data_points();
+        let n_data_points = metaphor.n_data_points();
         let n_data_points_f = n_data_points as f64;
-        let n_traits = meta.n_traits();
+        let n_traits = metaphor.n_traits();
         let mut sum_for_mu: f64 = 0.0;
         for j in 0..n_data_points {
             let mean_e_j = self.e_sums[j] / n_f;
@@ -81,6 +80,6 @@ impl VarStats {
             let sigma = (sum_for_sigma / n_data_points_f).sqrt();
             sigmas.push(sigma)
         }
-        Params { meta, mu, tau, betas, sigmas }
+        Params { metaphor, mu, tau, betas, sigmas }
     }
 }

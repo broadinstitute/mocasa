@@ -1,6 +1,5 @@
-use std::sync::Arc;
 use rand::Rng;
-use crate::data::Meta;
+use crate::data::Metaphor;
 use crate::train::gibbs::GibbsSampler;
 use crate::train::model::TrainModel;
 use crate::train::params::Params;
@@ -13,9 +12,9 @@ pub(crate) struct Sampler<R: Rng> {
 }
 
 impl<R: Rng> Sampler<R> {
-    pub(crate) fn new(meta: &Arc<Meta>, rng: R) -> Sampler<R> {
+    pub(crate) fn new(metaphor: &Metaphor, rng: R) -> Sampler<R> {
         let gibbs = GibbsSampler::new(rng);
-        let var_stats = VarStats::new(meta.clone());
+        let var_stats = VarStats::new(metaphor.clone());
         Sampler { gibbs, var_stats }
     }
     pub(crate) fn sample_n(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars,

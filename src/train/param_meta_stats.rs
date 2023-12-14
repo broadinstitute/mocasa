@@ -1,18 +1,17 @@
 use std::fmt::{Display, Formatter};
-use std::sync::Arc;
-use crate::data::Meta;
+use crate::data::Metaphor;
 use crate::error::Error;
 use crate::math::stats::Stats;
 use crate::math::trident::TridentStats;
 use crate::train::params::{ParamIndex, Params};
 
 pub(crate) struct ParamMetaStats {
-    meta: Arc<Meta>,
+    metaphor: Metaphor,
     stats: Vec<Vec<TridentStats>>,
 }
 
 pub(crate) struct Summary {
-    pub(crate) meta: Arc<Meta>,
+    pub(crate) metaphor: Metaphor,
     pub(crate) n_chains_used: usize,
     pub(crate) params: Params,
     pub(crate) intra_chain_vars: Vec<f64>,
@@ -24,9 +23,9 @@ pub(crate) struct Summary {
 }
 
 impl ParamMetaStats {
-    pub(crate) fn new(n_chains_used: usize, meta: Arc<Meta>, params0: &[Params],
+    pub(crate) fn new(n_chains_used: usize, metaphor: Metaphor, params0: &[Params],
                       params1: &[Params]) -> ParamMetaStats {
-        let n_traits = meta.n_traits();
+        let n_traits = metaphor.n_traits();
         let stats = (0..n_chains_used).map(|i_chain| {
             ParamIndex::all(n_traits).map(|index| {
                 let param0 = params0[i_chain][index];
@@ -34,11 +33,11 @@ impl ParamMetaStats {
                 TridentStats::new(param0, param1)
             }).collect::<Vec<TridentStats>>()
         }).collect::<Vec<Vec<TridentStats>>>();
-        ParamMetaStats { meta, stats }
+        ParamMetaStats { metaphor, stats }
     }
     pub(crate) fn n_chains_used(&self) -> usize { self.stats.len() }
     pub(crate) fn add(&mut self, params: &[Params]) {
-        let n_traits = self.meta.n_traits();
+        let n_traits = self.metaphor.n_traits();
         for (i_chain, param) in params.iter().enumerate() {
             for index in ParamIndex::all(n_traits) {
                 let i_param = index.get_ordinal(n_traits);
@@ -47,8 +46,8 @@ impl ParamMetaStats {
         }
     }
     pub(crate) fn summary(&self) -> Result<Summary, Error> {
-        let meta = self.meta.clone();
-        let n_traits = meta.n_traits();
+        let metaphor = self.metaphor.clone();
+        let n_traits = metaphor.n_traits();
         let n_chains_used = self.n_chains_used();
         let n_params = ParamIndex::n_params(n_traits);
         let mut param_values: Vec<f64> = Vec::with_capacity(n_params);
@@ -77,13 +76,13 @@ impl ParamMetaStats {
             inter_intra_ratios.push(inter_intra_ratio);
             relative_errors.push(relative_error);
         }
-        let params = Params::from_vec(&param_values, &meta)?;
+        let params = Params::from_vec(&param_values, metaphor.clone())?;
         let inter_intra_ratios_mean =
             inter_intra_ratios.iter().sum::<f64>() / (n_params as f64);
         let relative_errors_mean =
             relative_errors.iter().sum::<f64>() / (n_params as f64);
         Ok(Summary {
-            meta,
+            metaphor,
             n_chains_used,
             params,
             intra_chain_vars,
@@ -106,7 +105,7 @@ fn str18<T: Display>(item: T) -> String {
 
 impl Display for Summary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let n_traits = self.meta.n_traits();
+        let n_traits = self.metaphor.n_traits();
         writeln!(f, "Chains used: {}", self.n_chains_used)?;
         writeln!(f, "Relative errors mean: {}", self.relative_errors_mean)?;
         writeln!(f, "Inter/intra ratios mean: {}", self.inter_intra_ratios_mean.sqrt())?;
@@ -120,7 +119,7 @@ impl Display for Summary {
             let intra_chain_std_dev = self.intra_chain_vars[i].sqrt();
             let ratio = self.inter_intra_ratios[i];
             writeln!(f, "{} {} {} {} {} {}",
-                     str18(index.with_trait_name(&self.meta.trait_names)),
+                     str18(index.with_trait_name(self.metaphor.trait_names())),
                      str18(param), str18(rel_err), str18(inter_chain_std_dev),
                      str18(intra_chain_std_dev), str18(ratio))?
         }

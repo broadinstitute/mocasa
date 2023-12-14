@@ -13,12 +13,8 @@ use crate::options::config::Config;
 
 #[derive(Clone)]
 pub(crate) struct Metaphor {
-    pub(crate) meta: Arc<Meta>,
-}
-
-pub(crate) struct Meta {
-    pub(crate) trait_names: Vec<String>,
-    pub(crate) var_ids: Vec<String>,
+    pub(crate) trait_names: Arc<Vec<String>>,
+    pub(crate) var_ids: Arc<Vec<String>>,
 }
 
 pub(crate) struct TrainData {
@@ -33,15 +29,13 @@ pub(crate) struct BetaSe {
 }
 
 impl Metaphor {
-    pub(crate) fn var_ids(&self) -> &[String] { &self.meta.var_ids }
-    pub(crate) fn trait_names(&self) -> &[String] { &self.meta.trait_names }
+    pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>) -> Metaphor {
+        Metaphor { trait_names, var_ids }
+    }
+    pub(crate) fn var_ids(&self) -> &[String] { &self.var_ids }
+    pub(crate) fn trait_names(&self) -> &[String] { &self.trait_names }
     pub(crate) fn n_data_points(&self) -> usize { self.var_ids().len() }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names().len() }
-}
-
-impl Meta {
-    pub(crate) fn n_data_points(&self) -> usize { self.var_ids.len() }
-    pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
 }
 
 impl TrainData {
@@ -95,8 +89,7 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
             ses[i_data_point][i_trait] = beta_se[i_trait].se;
         }
     }
-    let meta = Arc::new(Meta { trait_names, var_ids });
-    let metaphor = Metaphor { meta };
+    let metaphor = Metaphor::new(trait_names.into(), var_ids.into());
     Ok(TrainData { metaphor, betas, ses })
 }
 

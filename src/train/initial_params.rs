@@ -4,9 +4,9 @@ use crate::train::model::TrainModel;
 use crate::train::params::Params;
 
 pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Error> {
-    let meta = model.data.metaphor.meta.clone();
-    let n_data_points = meta.n_data_points();
-    let n_traits = meta.n_traits();
+    let metaphor = model.data.metaphor.clone();
+    let n_data_points = metaphor.n_data_points();
+    let n_traits = metaphor.n_traits();
     let mut data_stats: Vec<Stats> = (0..n_traits).map(|_| Stats::new()).collect();
     for i_data_point in 0..n_data_points {
         for (i_trait, data_stat) in data_stats.iter_mut().enumerate() {
@@ -32,5 +32,5 @@ pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Erro
         e_stats.variance().ok_or_else(|| { Error::from("Need at least one trait.") })?
             .sqrt();
     let betas: Vec<f64> = means.iter().map(|mean| mean / (mu + tau * mu.signum())).collect();
-    Ok(Params { meta, mu, tau, betas, sigmas })
+    Ok(Params { metaphor, mu, tau, betas, sigmas })
 }

@@ -57,7 +57,7 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 
 fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
     let model = Arc::new(TrainModel::new(data));
-    let n_traits = model.meta().n_traits();
+    let n_traits = model.metaphor().n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
@@ -83,7 +83,7 @@ fn train(data: TrainData, config: &Config) -> Result<Params, Error> {
         let params0 = create_param_estimates(&senders, &receiver, n_samples)?;
         let params1 = create_param_estimates(&senders, &receiver, n_samples)?;
         let mut param_meta_stats =
-            ParamMetaStats::new(n_threads, params.meta.clone(), &params0,
+            ParamMetaStats::new(n_threads, params.metaphor, &params0,
                                 &params1);
         let mut reached_precision = false;
         loop {
