@@ -19,6 +19,6 @@ pub fn run() -> Result<(), Error> {
     check_prerequisites(&config)?;
     match cli_options.action {
         Action::Train => { train::train_or_check(&config, cli_options.dry) }
-        Action::Classify => { classify::classify(&config) }
+        Action::Classify => { classify::classify_or_check(&config, cli_options.dry) }
     }
 }
