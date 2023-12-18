@@ -12,7 +12,8 @@ pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error>
     Ok(())
 }
 
-pub(crate) fn classify(_config: &Config) -> Result<(), Error> {
+pub(crate) fn classify(config: &Config) -> Result<(), Error> {
+    let params = read_params(&config.files.params)?;
     todo!()
 }
 

@@ -3,7 +3,7 @@ use rand_distr::Normal;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 use rand_distr::Distribution;
-use crate::data::TrainData;
+use crate::data::GwasData;
 
 pub(crate) struct GibbsSampler<R: Rng> {
     rng: R,
@@ -27,7 +27,7 @@ impl<R: Rng> GibbsSampler<R> {
         Normal::new(mean, std_dev).unwrap().sample(&mut self.rng)
     }
 
-    pub(crate) fn draw_t(&mut self, data: &TrainData, vars: &Vars, params: &Params,
+    pub(crate) fn draw_t(&mut self, data: &GwasData, vars: &Vars, params: &Params,
                          i_data_point: usize, i_trait: usize) -> f64 {
         let mu_e = params.betas[i_trait] * vars.es[i_data_point];
         let var_e = params.sigmas[i_trait].powi(2);

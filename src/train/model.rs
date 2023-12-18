@@ -1,14 +1,14 @@
-use crate::data::{Meta, TrainData};
+use crate::data::{Meta, GwasData};
 use crate::math::matrix::Matrix;
 use crate::train::params::Params;
 use crate::train::vars::Vars;
 
 pub(crate) struct TrainModel {
-    pub(crate) data: TrainData,
+    pub(crate) data: GwasData,
 }
 
 impl TrainModel {
-    pub(crate) fn new(data: TrainData) -> TrainModel {
+    pub(crate) fn new(data: GwasData) -> TrainModel {
         TrainModel { data }
     }
     pub(crate) fn meta(&self) -> &Meta { &self.data.meta }

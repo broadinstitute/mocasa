@@ -17,7 +17,7 @@ pub(crate) struct Meta {
     pub(crate) var_ids: Arc<Vec<String>>,
 }
 
-pub(crate) struct TrainData {
+pub(crate) struct GwasData {
     pub(crate) meta: Meta,
     pub(crate) betas: Matrix,
     pub(crate) ses: Matrix,
@@ -38,7 +38,7 @@ impl Meta {
     pub(crate) fn n_traits(&self) -> usize { self.trait_names().len() }
 }
 
-impl TrainData {
+impl GwasData {
     pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points() }
     pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
 }
@@ -49,7 +49,7 @@ impl Display for BetaSe {
     }
 }
 
-impl Display for TrainData {
+impl Display for GwasData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", gwas::cols::VAR_ID)?;
         for trait_name in self.meta.trait_names() {
@@ -68,12 +68,12 @@ impl Display for TrainData {
     }
 }
 
-pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
+pub(crate) fn load_train_data(config: &Config) -> Result<GwasData, Error> {
     let mut beta_se_lists = load_ids(&config.train.ids_file)?;
     let mut trait_names: Vec<String> = Vec::new();
     for gwas in &config.gwas {
         trait_names.push(gwas.name.clone());
-        load_gaws(&mut beta_se_lists, &gwas.file)?;
+        load_train_gaws(&mut beta_se_lists, &gwas.file)?;
         check_n_beta_se(&beta_se_lists, trait_names.len())?;
     }
     let n_data_points = beta_se_lists.len();
@@ -90,7 +90,7 @@ pub(crate) fn load_training_data(config: &Config) -> Result<TrainData, Error> {
         }
     }
     let meta = Meta::new(trait_names.into(), var_ids.into());
-    Ok(TrainData { meta, betas, ses })
+    Ok(GwasData { meta, betas, ses })
 }
 
 fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
@@ -103,7 +103,7 @@ fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
     Ok(ids)
 }
 
-fn load_gaws(beta_se_lists: &mut BTreeMap<String, Vec<BetaSe>>, file: &str) -> Result<(), Error> {
+fn load_train_gaws(beta_se_lists: &mut BTreeMap<String, Vec<BetaSe>>, file: &str) -> Result<(), Error> {
     let gwas_reader =
         GwasReader::new(BufReader::new(File::open(file)?))?;
     for gwas_record in gwas_reader {

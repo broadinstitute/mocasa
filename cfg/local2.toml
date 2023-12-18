@@ -1,0 +1,26 @@
+[[gwas]]
+name = "fast_ins_adj_bmi"
+file = "/home/BROAD.MIT.EDU/oliverr/mocasa/gwas/aligned_adj_fi.Chenji2021_Glycaemic_EU.FIadjBMI.txt"
+[[gwas]]
+name = "hdl"
+file = "/home/BROAD.MIT.EDU/oliverr/mocasa/gwas/aligned_adj_hdl.Graham_2021_lipids_EU.HDL.txt"
+[[gwas]]
+name = "hipc"
+file = "/home/BROAD.MIT.EDU/oliverr/mocasa/gwas/aligned_adj_hipc.GWAS_GIANT-A_eu.HIPC.txt"
+[[gwas]]
+name = "tg"
+file = "/home/BROAD.MIT.EDU/oliverr/mocasa/gwas/aligned_adj_tg.Graham_2021_lipids_EU.TG.txt"
+[[gwas]]
+name = "t2d"
+file = "/home/BROAD.MIT.EDU/oliverr/mocasa/gwas/aligned_adj_t2d.Mahajan2022_T2D_EU.txt"
+
+[files]
+trace = "/home/BROAD.MIT.EDU/oliverr/mocasa/test/trace"
+params = "/home/BROAD.MIT.EDU/oliverr/mocasa/test/params"
+
+[train]
+ids_file = "/home/BROAD.MIT.EDU/oliverr/mocasa/training_var_list"
+n_steps_burn_in = 20000
+n_samples_per_iteration = 200
+n_iterations_per_round = 1000
+n_rounds = 10000

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::thread::{available_parallelism, JoinHandle, spawn};
 use std::time::Duration;
-use crate::data::{load_training_data, TrainData};
+use crate::data::{load_train_data, GwasData};
 use crate::error::Error;
 use crate::options::config::{Config, TrainConfig};
 use crate::report::Reporter;
@@ -46,7 +46,7 @@ impl MessageToCentral {
 }
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
-    let data = load_training_data(config)?;
+    let data = load_train_data(config)?;
     println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
     if dry {
@@ -57,7 +57,7 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     Ok(())
 }
 
-fn train(data: TrainData, config: &Config) -> Result<(), Error> {
+fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let model = Arc::new(TrainModel::new(data));
     let n_traits = model.meta().n_traits();
     let mut params_trace_writer =
