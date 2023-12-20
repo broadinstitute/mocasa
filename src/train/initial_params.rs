@@ -1,17 +1,17 @@
+use crate::data::GwasData;
 use crate::error::Error;
 use crate::math::stats::Stats;
-use crate::train::model::TrainModel;
 use crate::train::params::Params;
 
-pub(crate) fn estimate_initial_params(model: &TrainModel) -> Result<Params, Error> {
-    let meta = &model.data.meta;
+pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> {
+    let meta = &data.meta;
     let n_data_points = meta.n_data_points();
     let n_traits = meta.n_traits();
     let mut data_stats: Vec<Stats> = (0..n_traits).map(|_| Stats::new()).collect();
     for i_data_point in 0..n_data_points {
         for (i_trait, data_stat) in data_stats.iter_mut().enumerate() {
-            println!("{}\t{}\t{}", i_data_point, i_trait, model.data.betas[i_data_point][i_trait]);
-            data_stat.add(model.data.betas[i_data_point][i_trait])
+            println!("{}\t{}\t{}", i_data_point, i_trait, data.betas[i_data_point][i_trait]);
+            data_stat.add(data.betas[i_data_point][i_trait])
         }
     }
     let sigmas: Vec<f64> =

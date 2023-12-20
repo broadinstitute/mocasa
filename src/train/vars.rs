@@ -1,6 +1,7 @@
 use std::iter;
-use crate::data::Meta;
+use crate::data::{GwasData, Meta};
 use crate::math::matrix::Matrix;
+use crate::train::params::Params;
 
 pub(crate) struct Vars {
     pub(crate) meta: Meta,
@@ -23,5 +24,15 @@ impl Vars {
                     VarIndex::T { i_data_point, i_trait }
                 }))
         })
+    }
+    pub(crate) fn initial_vars(data: &GwasData, params: &Params) -> Vars {
+        let meta = data.meta.clone();
+        let es = vec![params.mu; data.n_data_points()];
+        let element_gen = |i_data_point: usize, i_trait: usize| {
+            es[i_data_point] * params.betas[i_trait]
+        };
+        let ts =
+            Matrix::fill(data.n_data_points(), data.n_traits(), element_gen);
+        Vars { meta, es, ts }
     }
 }

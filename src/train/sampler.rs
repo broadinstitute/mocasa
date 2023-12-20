@@ -1,7 +1,6 @@
 use rand::Rng;
-use crate::data::Meta;
+use crate::data::{GwasData, Meta};
 use crate::train::gibbs::GibbsSampler;
-use crate::train::model::TrainModel;
 use crate::train::params::Params;
 use crate::train::var_stats::VarStats;
 use crate::train::vars::{VarIndex, Vars};
@@ -17,13 +16,13 @@ impl<R: Rng> Sampler<R> {
         let var_stats = VarStats::new(meta.clone());
         Sampler { gibbs, var_stats }
     }
-    pub(crate) fn sample_n(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars,
+    pub(crate) fn sample_n(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
                            n_steps: usize) {
         for _ in 0..n_steps {
-            self.sample_one(model, params, vars)
+            self.sample_one(data, params, vars)
         }
     }
-    pub(crate) fn sample_one(&mut self, model: &TrainModel, params: &Params, vars: &mut Vars) {
+    pub(crate) fn sample_one(&mut self, data: &GwasData, params: &Params, vars: &mut Vars) {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point } => {
@@ -31,7 +30,7 @@ impl<R: Rng> Sampler<R> {
                 }
                 VarIndex::T { i_data_point, i_trait } => {
                     vars.ts[i_data_point][i_trait] =
-                        self.gibbs.draw_t(&model.data, vars, params, i_data_point, i_trait);
+                        self.gibbs.draw_t(data, vars, params, i_data_point, i_trait);
                 }
             }
         }

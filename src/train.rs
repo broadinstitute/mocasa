@@ -1,4 +1,3 @@
-mod model;
 mod sampler;
 pub(crate) mod params;
 mod vars;
@@ -23,7 +22,6 @@ use crate::options::action::Action;
 use crate::options::config::{Config, TrainConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
-use crate::train::model::TrainModel;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
@@ -59,8 +57,8 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 }
 
 fn train(data: GwasData, config: &Config) -> Result<(), Error> {
-    let model = Arc::new(TrainModel::new(data));
-    let n_traits = model.meta().n_traits();
+    let data = Arc::new(data);
+    let n_traits = data.meta.n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
@@ -73,10 +71,10 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
         channel::<MessageToCentral>();
     println!("Launching {} workers and burning in with {} iterations", n_threads,
              config.train.n_steps_burn_in);
-    let mut params = estimate_initial_params(&model)?;
+    let mut params = estimate_initial_params(&data)?;
     println!("{}", params);
     let (join_handles, senders) =
-        launch_workers(&model, &params, worker_sender, n_threads, &config.train);
+        launch_workers(&data, &params, worker_sender, n_threads, &config.train);
     println!("Workers launched and burned in.");
     let n_samples: usize = config.train.n_samples_per_iteration;
     let mut reporter = Reporter::new();
@@ -162,20 +160,20 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
     Ok(params)
 }
 
-fn launch_workers(model: &Arc<TrainModel>, params: &Params,
+fn launch_workers(data: &Arc<GwasData>, params: &Params,
                   worker_sender: Sender<MessageToCentral>, n_threads: usize, config: &TrainConfig)
                   -> (Vec<JoinHandle<()>>, Vec<Sender<MessageToWorker>>) {
     let mut join_handles: Vec<JoinHandle<()>> = Vec::with_capacity(n_threads);
     let mut senders: Vec<Sender<MessageToWorker>> = Vec::with_capacity(n_threads);
     for i_thread in 0..n_threads {
-        let model = model.clone();
+        let data = data.clone();
         let worker_sender = worker_sender.clone();
         let (sender, worker_receiver) =
             channel::<MessageToWorker>();
         let config = config.clone();
         let params = params.clone();
         let join_handle = spawn(move || {
-            train_chain(model, params, worker_sender, worker_receiver, i_thread,
+            train_chain(data, params, worker_sender, worker_receiver, i_thread,
                         &config);
         });
         join_handles.push(join_handle);
