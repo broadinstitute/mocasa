@@ -7,6 +7,7 @@ pub(crate) mod names {
     pub(crate) const CLASSIFY: &str = "classify";
 }
 
+#[derive(PartialEq, Clone, Copy)]
 pub enum Action { Train, Classify }
 
 impl Display for Action {

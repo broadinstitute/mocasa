@@ -1,14 +1,14 @@
 mod gwas;
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 use crate::data::gwas::{GwasReader, GwasRecord};
-use crate::error::Error;
+use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
+use crate::options::action::Action;
 use crate::options::config::Config;
 
 #[derive(Clone)]
@@ -23,6 +23,7 @@ pub(crate) struct GwasData {
     pub(crate) ses: Matrix,
 }
 
+#[derive(Clone)]
 pub(crate) struct BetaSe {
     pub(crate) beta: f64,
     pub(crate) se: f64,
@@ -68,66 +69,81 @@ impl Display for GwasData {
     }
 }
 
-pub(crate) fn load_train_data(config: &Config) -> Result<GwasData, Error> {
-    let mut beta_se_lists = load_ids(&config.train.ids_file)?;
-    let mut trait_names: Vec<String> = Vec::new();
-    for gwas in &config.gwas {
+pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Error> {
+    let n_traits = config.gwas.len();
+    let mut beta_se_by_ids: BTreeMap<String, Vec<BetaSe>> =
+        match action {
+            Action::Train => { load_ids(&config.train.ids_file, n_traits)? }
+            Action::Classify => { BTreeMap::new() }
+        };
+    let mut trait_names: Vec<String> = Vec::with_capacity(n_traits);
+    for (i_trait, gwas) in config.gwas.iter().enumerate() {
         trait_names.push(gwas.name.clone());
-        load_train_gaws(&mut beta_se_lists, &gwas.file)?;
-        check_n_beta_se(&beta_se_lists, trait_names.len())?;
+        load_gaws(&mut beta_se_by_ids, &gwas.file, n_traits, i_trait, action)?;
     }
-    let n_data_points = beta_se_lists.len();
-    let n_traits = trait_names.len();
-    let mut var_ids: Vec<String> = Vec::new();
-    let mut betas: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
-    let mut ses: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| { 0.0 });
-    for (i_data_point, (var_id, beta_se))
-    in beta_se_lists.iter().enumerate() {
-        var_ids.push(var_id.clone());
-        for (i_trait, _) in trait_names.iter().enumerate() {
-            betas[i_data_point][i_trait] = beta_se[i_trait].beta;
-            ses[i_data_point][i_trait] = beta_se[i_trait].se;
+    let n_data_points = beta_se_by_ids.len();
+    let mut var_ids: Vec<String> = Vec::with_capacity(n_data_points);
+    let mut betas = Matrix::fill(n_data_points, n_traits, |_, _| f64::NAN);
+    let mut ses = Matrix::fill(n_data_points, n_traits, |_, _| f64::NAN);
+    for (i_data_point, (var_id, beta_ses))
+    in beta_se_by_ids.into_iter().enumerate() {
+        var_ids.push(var_id);
+        for (i_trait, beta_se) in beta_ses.into_iter().enumerate() {
+            betas[i_data_point][i_trait] = beta_se.beta;
+            ses[i_data_point][i_trait] = beta_se.se;
+        }
+    }
+    if action == Action::Train {
+        for (i_data_point, var_id) in var_ids.iter().enumerate() {
+            for (i_trait, trait_name) in trait_names.iter().enumerate() {
+                if betas[i_data_point][i_trait].is_nan() {
+                    Err(Error::from(
+                        format!("Missing beta for trait {} for var id {}",
+                                trait_name, var_id)
+                    ))?;
+                }
+                if ses[i_data_point][i_trait].is_nan() {
+                    Err(Error::from(
+                        format!("Missing se for trait {} for var id {}",
+                                trait_name, var_id)
+                    ))?;
+                }
+            }
         }
     }
     let meta = Meta::new(trait_names.into(), var_ids.into());
     Ok(GwasData { meta, betas, ses })
 }
 
-fn load_ids(ids_file: &str) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
-    let mut ids: BTreeMap<String, Vec<BetaSe>> = BTreeMap::new();
-    for line in BufReader::new(File::open(ids_file)?).lines() {
+fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
+    let mut beta_se_by_id: BTreeMap<String, Vec<BetaSe>> = BTreeMap::new();
+    for line
+    in BufReader::new(for_file(ids_file, File::open(ids_file))?).lines() {
         let line = line?.trim().to_string();
-        let values: Vec<BetaSe> = Vec::new();
-        ids.insert(line, values);
+        let beta_se_list: Vec<BetaSe> = new_beta_se_list(n_traits);
+        beta_se_by_id.insert(line, beta_se_list);
     }
-    Ok(ids)
+    Ok(beta_se_by_id)
 }
 
-fn load_train_gaws(beta_se_lists: &mut BTreeMap<String, Vec<BetaSe>>, file: &str) -> Result<(), Error> {
+fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_traits: usize,
+             i_trait: usize, action: Action)
+             -> Result<(), Error> {
     let gwas_reader =
-        GwasReader::new(BufReader::new(File::open(file)?))?;
+        GwasReader::new(BufReader::new(for_file(file, File::open(file))?))?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = gwas_record?;
-        if let Some(beta_se_list) = beta_se_lists.get_mut(&var_id) {
-            beta_se_list.push(BetaSe { beta, se })
+        if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {
+            beta_se_list[i_trait] = BetaSe { beta, se };
+        } else if action == Action::Classify {
+            let mut beta_se_list = new_beta_se_list(n_traits);
+            beta_se_list[i_trait] = BetaSe { beta, se };
+            beta_se_by_id.insert(var_id, beta_se_list);
         }
     }
     Ok(())
 }
 
-fn check_n_beta_se(beta_ses: &BTreeMap<String, Vec<BetaSe>>, len_expected: usize)
-                   -> Result<(), Error> {
-    for (var_id, beta_se_list) in beta_ses {
-        match beta_se_list.len().cmp(&len_expected) {
-            Ordering::Less => {
-                Err(Error::from(format!("Missing value for {}.", var_id)))?
-            }
-            Ordering::Equal => {}
-            Ordering::Greater => {
-                Err(Error::from(format!("Duplicate lines for {}.", var_id)))?
-            }
-        }
-    }
-    Ok(())
+fn new_beta_se_list(n_traits: usize) -> Vec<BetaSe> {
+    vec![BetaSe { beta: f64::NAN, se: f64::NAN }; n_traits]
 }
-

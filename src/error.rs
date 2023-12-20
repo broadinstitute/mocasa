@@ -132,3 +132,12 @@ impl Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+pub(crate) fn for_file<T>(file: &str, result: std::io::Result<T>) -> Result<T, Error> {
+    match result {
+        Ok(value) => { Ok(value) }
+        Err(error) => {
+            Err(Error::new(ErrorKind::IOError, format!("{}: {}", file, error)))
+        }
+    }
+}

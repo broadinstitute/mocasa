@@ -17,8 +17,9 @@ use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::thread::{available_parallelism, JoinHandle, spawn};
 use std::time::Duration;
-use crate::data::{load_train_data, GwasData};
-use crate::error::Error;
+use crate::data::{GwasData, load_data};
+use crate::error::{Error, for_file};
+use crate::options::action::Action;
 use crate::options::config::{Config, TrainConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
@@ -46,7 +47,7 @@ impl MessageToCentral {
 }
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
-    let data = load_train_data(config)?;
+    let data = load_data(config, Action::Train)?;
     println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
     if dry {
@@ -199,7 +200,8 @@ fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<Message
 }
 
 fn write_params_to_file(params: &Params, output_file: &str) -> Result<(), Error> {
-    let mut writer = BufWriter::new(File::create(output_file)?);
+    let mut writer =
+        BufWriter::new(for_file(output_file, File::create(output_file))?);
     let json = serde_json::to_string(params)?;
     writeln!(writer, "{}", json)?;
     Ok(())
