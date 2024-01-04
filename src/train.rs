@@ -13,8 +13,8 @@ use std::fs::File;
 use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
-use std::thread::{available_parallelism, JoinHandle, spawn};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::thread::available_parallelism;
 use std::time::Duration;
 use crate::data::{GwasData, load_data};
 use crate::error::{Error, for_file};
@@ -26,11 +26,16 @@ use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_chain;
+use crate::util::threads::{OutMessage, Threads, WorkerLauncher};
 
 pub(crate) enum MessageToWorker {
     TakeNSamples(usize),
     SetNewParams(Params),
     Shutdown,
+}
+
+impl OutMessage for MessageToWorker {
+    const SHUTDOWN: Self = MessageToWorker::Shutdown;
 }
 
 pub(crate) struct MessageToCentral {
@@ -41,6 +46,27 @@ pub(crate) struct MessageToCentral {
 impl MessageToCentral {
     pub(crate) fn new(i_thread: usize, params: Params) -> MessageToCentral {
         MessageToCentral { i_thread, params }
+    }
+}
+
+#[derive(Clone)]
+struct TrainWorkerLauncher {
+    data: Arc<GwasData>,
+    params: Params,
+    config: TrainConfig
+}
+
+impl WorkerLauncher<MessageToCentral, MessageToWorker> for TrainWorkerLauncher {
+    fn launch(self, in_sender: Sender<MessageToCentral>, out_receiver: Receiver<MessageToWorker>,
+              i_thread: usize) {
+        let TrainWorkerLauncher { data, params, config } = self;
+        train_chain(&data, params, in_sender, out_receiver, i_thread, &config);
+    }
+}
+
+impl TrainWorkerLauncher {
+    fn new(data: Arc<GwasData>, params: Params, config: TrainConfig) -> TrainWorkerLauncher {
+        TrainWorkerLauncher { data, params, config }
     }
 }
 
@@ -67,29 +93,32 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
             None
         };
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
-    let (worker_sender, receiver) =
-        channel::<MessageToCentral>();
     println!("Launching {} workers and burning in with {} iterations", n_threads,
              config.train.n_steps_burn_in);
     let mut params = estimate_initial_params(&data)?;
     println!("{}", params);
-    let (join_handles, senders) =
-        launch_workers(&data, &params, worker_sender, n_threads, &config.train);
+    let launcher =
+        TrainWorkerLauncher::new(data, params.clone(), config.train.clone());
+    let threads =
+        Threads::<MessageToCentral, MessageToWorker>::new(launcher, n_threads);
     println!("Workers launched and burned in.");
     let n_samples: usize = config.train.n_samples_per_iteration;
     let mut reporter = Reporter::new();
     let mut i_round: usize = 0;
     let mut i_iteration: usize = 0;
     loop {
-        let params0 = create_param_estimates(&senders, &receiver, n_samples)?;
-        let params1 = create_param_estimates(&senders, &receiver, n_samples)?;
+        let params0 =
+            create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
+        let params1 =
+            create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
         let mut param_meta_stats =
             ParamMetaStats::new(n_threads, params.trait_names.clone(),
                                 &params0, &params1);
         let mut reached_precision = false;
         loop {
             i_iteration += 1;
-            let params_new = create_param_estimates(&senders, &receiver, n_samples)?;
+            let params_new =
+                create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
             if i_iteration >= config.train.n_iterations_per_round {
@@ -105,7 +134,7 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
                     println!("Setting new parameters for round {} after {} iterations", i_round,
                              i_iteration);
                     i_iteration = 0;
-                    for sender in senders.iter() {
+                    for sender in threads.out_senders.iter() {
                         sender.send(MessageToWorker::SetNewParams(params.clone()))?;
                     }
                 }
@@ -119,7 +148,6 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
         }
     };
     write_params_to_file(&params, config.files.params.as_str())?;
-    shutdown_workers(join_handles, &senders);
     Ok(())
 }
 
@@ -158,43 +186,6 @@ fn create_param_estimates(senders: &[Sender<MessageToWorker>],
         }
     }
     Ok(params)
-}
-
-fn launch_workers(data: &Arc<GwasData>, params: &Params,
-                  worker_sender: Sender<MessageToCentral>, n_threads: usize, config: &TrainConfig)
-                  -> (Vec<JoinHandle<()>>, Vec<Sender<MessageToWorker>>) {
-    let mut join_handles: Vec<JoinHandle<()>> = Vec::with_capacity(n_threads);
-    let mut senders: Vec<Sender<MessageToWorker>> = Vec::with_capacity(n_threads);
-    for i_thread in 0..n_threads {
-        let data = data.clone();
-        let worker_sender = worker_sender.clone();
-        let (sender, worker_receiver) =
-            channel::<MessageToWorker>();
-        let config = config.clone();
-        let params = params.clone();
-        let join_handle = spawn(move || {
-            train_chain(data, params, worker_sender, worker_receiver, i_thread,
-                        &config);
-        });
-        join_handles.push(join_handle);
-        senders.push(sender);
-    }
-    (join_handles, senders)
-}
-
-fn shutdown_workers(join_handles: Vec<JoinHandle<()>>, senders: &[Sender<MessageToWorker>]) {
-    for (i, sender) in senders.iter().enumerate() {
-        match sender.send(MessageToWorker::Shutdown) {
-            Ok(_) => { println!("Sent to worker {} request to shut down.", i) }
-            Err(_) => { println!("Could not reach worker {}.", i) }
-        };
-    }
-    for (i, join_handle) in join_handles.into_iter().enumerate() {
-        match join_handle.join() {
-            Ok(_) => { println!("Worker {} has shut down.", i) }
-            Err(_) => { println!("Worker {} has crashed.", i) }
-        }
-    }
 }
 
 fn write_params_to_file(params: &Params, output_file: &str) -> Result<(), Error> {
