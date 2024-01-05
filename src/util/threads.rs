@@ -1,11 +1,16 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::{JoinHandle, spawn};
+use crate::error::Error;
 
-pub(crate) trait OutMessage: Send {
+pub(crate) trait InMessage: Send {
+    fn i_thread(&self) -> usize;
+}
+
+pub(crate) trait OutMessage: Send + Clone {
     const SHUTDOWN: Self;
 }
 
-pub(crate) struct Threads<I, O> where I: Send + 'static, O: OutMessage + 'static {
+pub(crate) struct Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
     pub(crate) in_receiver: Receiver<I>,
     pub(crate) out_senders: Vec<Sender<O>>,
     pub(crate) join_handles: Vec<JoinHandle<()>>,
@@ -15,7 +20,7 @@ pub(crate) trait WorkerLauncher<I, O>: Clone + Send where {
     fn launch(self, in_sender: Sender<I>, out_receiver: Receiver<O>, i_thread: usize);
 }
 
-impl<I, O> Threads<I, O> where I: Send + 'static, O: OutMessage + 'static {
+impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
     pub(crate) fn new<L>(launcher: L, n_threads: usize) -> Threads<I, O>
         where L: WorkerLauncher<I, O> + 'static {
         let (in_sender, in_receiver) = channel::<I>();
@@ -23,9 +28,26 @@ impl<I, O> Threads<I, O> where I: Send + 'static, O: OutMessage + 'static {
             launch_workers(in_sender.clone(), launcher, n_threads);
         Threads { in_receiver, out_senders, join_handles }
     }
+    pub(crate) fn n_threads(&self) -> usize { self.join_handles.len() }
+    pub(crate) fn broadcast(&self, out_message: O) -> Result<(), Error> {
+        for out_sender in &self.out_senders {
+            out_sender.send(out_message.clone())?;
+        }
+        Ok(())
+    }
+    pub(crate) fn responses_from_all(&self) -> Result<Vec<I>, Error> {
+        let mut responses_opts: Vec<Option<I>> = (0..self.n_threads()).map(|_| None).collect();
+        while responses_opts.iter().any(|response_opt| response_opt.is_none()) {
+            let response = self.in_receiver.recv()?;
+            let i_thread = response.i_thread();
+            responses_opts[i_thread] =  Some(response);
+        }
+        let responses: Vec<I> = responses_opts.into_iter().flatten().collect();
+        Ok(responses)
+    }
 }
 
-impl<I, O> Drop for Threads<I, O> where I: Send + 'static, O: OutMessage + 'static {
+impl<I, O> Drop for Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
     fn drop(&mut self) {
         for (i, sender) in self.out_senders.iter().enumerate() {
             match sender.send(O::SHUTDOWN) {

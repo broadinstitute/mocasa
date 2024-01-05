@@ -13,9 +13,8 @@ use std::fs::File;
 use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::thread::available_parallelism;
-use std::time::Duration;
 use crate::data::{GwasData, load_data};
 use crate::error::{Error, for_file};
 use crate::options::action::Action;
@@ -26,8 +25,9 @@ use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_chain;
-use crate::util::threads::{OutMessage, Threads, WorkerLauncher};
+use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
 
+#[derive(Clone)]
 pub(crate) enum MessageToWorker {
     TakeNSamples(usize),
     SetNewParams(Params),
@@ -47,6 +47,10 @@ impl MessageToCentral {
     pub(crate) fn new(i_thread: usize, params: Params) -> MessageToCentral {
         MessageToCentral { i_thread, params }
     }
+}
+
+impl InMessage for MessageToCentral {
+    fn i_thread(&self) -> usize { self.i_thread }
 }
 
 #[derive(Clone)]
@@ -107,18 +111,15 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let mut i_round: usize = 0;
     let mut i_iteration: usize = 0;
     loop {
-        let params0 =
-            create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
-        let params1 =
-            create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
+        let params0 = create_param_estimates(&threads, n_samples)?;
+        let params1 = create_param_estimates(&threads, n_samples)?;
         let mut param_meta_stats =
             ParamMetaStats::new(n_threads, params.trait_names.clone(),
                                 &params0, &params1);
         let mut reached_precision = false;
         loop {
             i_iteration += 1;
-            let params_new =
-                create_param_estimates(&threads.out_senders, &threads.in_receiver, n_samples)?;
+            let params_new = create_param_estimates(&threads, n_samples)?;
             param_meta_stats.add(&params_new);
             let summary = param_meta_stats.summary()?;
             if i_iteration >= config.train.n_iterations_per_round {
@@ -151,40 +152,12 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     Ok(())
 }
 
-fn create_param_estimates(senders: &[Sender<MessageToWorker>],
-                          receiver: &Receiver<MessageToCentral>, n_samples: usize)
+fn create_param_estimates(threads: &Threads<MessageToCentral, MessageToWorker>, n_samples: usize)
                           -> Result<Vec<Params>, Error> {
-    let n_threads = senders.len();
-    for sender in senders.iter() {
-        sender.send(MessageToWorker::TakeNSamples(n_samples))?;
-    }
-    let mut param_estimates: Vec<Option<Params>> =
-        (0..n_threads).map(|_| None).collect();
-    while param_estimates.iter().any(|param_opt| param_opt.is_none()) {
-        let receive_result =
-            receiver.recv_timeout(Duration::from_secs(100));
-        match receive_result {
-            Ok(message) => {
-                let MessageToCentral { i_thread, params } = message;
-                param_estimates[i_thread] = Some(params);
-            }
-            Err(RecvTimeoutError::Timeout) => {
-                println!("Still waiting for worker threads.")
-            }
-            Err(RecvTimeoutError::Disconnected) => { receive_result?; }
-        }
-    }
-    let mut params: Vec<Params> = Vec::with_capacity(n_threads);
-    for param_estimate in param_estimates {
-        match param_estimate {
-            None => {
-                Err(Error::from("Did not get parameter estimates from all workers"))?
-            }
-            Some(param_result) => {
-                params.push(param_result)
-            }
-        }
-    }
+    threads.broadcast(MessageToWorker::TakeNSamples(n_samples))?;
+    let responses = threads.responses_from_all()?;
+    let params: Vec<Params> =
+        responses.into_iter().map(|response| response.params).collect();
     Ok(params)
 }
 

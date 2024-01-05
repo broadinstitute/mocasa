@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseFloatError;
-use std::sync::mpsc::{RecvTimeoutError, SendError};
+use std::sync::mpsc::{RecvError, RecvTimeoutError, SendError};
 use std::time::SystemTimeError;
-use crate::train::MessageToWorker;
 
 mod names {
     pub const MOCASA: &str = "Mocasa error";
@@ -10,6 +9,7 @@ mod names {
     pub const TOML_DE: &str = "TOML deserialization error";
     pub const PARSE_FLOAT: &str = "parse float error";
     pub const SEND: &str = "send error";
+    pub const RECEIVE: &str = "receive error";
     pub const RECEIVE_TIMEOUT: &str = "receive timeout error";
     pub const SYSTEM_TIME: &str = "system time error";
     pub const SERDE_JSON: &str = "Serde JSON";
@@ -21,6 +21,7 @@ pub enum ErrorKind {
     TomlDe,
     ParseFloat,
     Send,
+    Receive,
     ReceiveTimeout,
     SystemTime,
     SerdeJson,
@@ -64,10 +65,17 @@ impl From<ParseFloatError> for Error {
     }
 }
 
-impl From<SendError<MessageToWorker>> for Error {
-    fn from(send_error: SendError<MessageToWorker>) -> Self {
+impl<O> From<SendError<O>> for Error {
+    fn from(send_error: SendError<O>) -> Self {
         let message = send_error.to_string();
         Error::new(ErrorKind::Send, message)
+    }
+}
+
+impl From<RecvError> for Error {
+    fn from(receive_error: RecvError) -> Self {
+        let message = receive_error.to_string();
+        Error::new(ErrorKind::Receive, message)
     }
 }
 
@@ -100,6 +108,7 @@ impl ErrorKind {
             ErrorKind::TomlDe => { names::TOML_DE }
             ErrorKind::ParseFloat => { names::PARSE_FLOAT }
             ErrorKind::Send => { names::SEND }
+            ErrorKind::Receive => { names::RECEIVE }
             ErrorKind::ReceiveTimeout => { names::RECEIVE_TIMEOUT }
             ErrorKind::SystemTime => { names::SYSTEM_TIME }
             ErrorKind::SerdeJson => { names::SERDE_JSON }
