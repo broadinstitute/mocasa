@@ -7,6 +7,7 @@ pub(crate) struct Config {
     pub(crate) files: FilesConfig,
     pub(crate) gwas: Vec<GwasConfig>,
     pub(crate) train: TrainConfig,
+    pub(crate) classify: ClassifyConfig,
 }
 
 #[derive(Deserialize)]
@@ -28,6 +29,13 @@ pub(crate) struct TrainConfig {
     pub(crate) n_samples_per_iteration: usize,
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,
+}
+
+#[derive(Deserialize, Clone)]
+pub(crate) struct ClassifyConfig {
+    pub(crate) n_steps_burn_in: usize,
+    pub(crate) n_samples: usize,
+    pub(crate) out_file: String
 }
 
 pub(crate) fn load_config(file: &str) -> Result<Config, Error> {

@@ -9,9 +9,9 @@ use crate::train::params::Params;
 use crate::train::sampler::Sampler;
 use crate::train::vars::Vars;
 
-pub(crate) fn train_chain(data: &Arc<GwasData>, mut params: Params,
-                          sender: Sender<MessageToCentral>, receiver: Receiver<MessageToWorker>,
-                          i_thread: usize, config: &TrainConfig) {
+pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
+                           sender: Sender<MessageToCentral>, receiver: Receiver<MessageToWorker>,
+                           i_thread: usize, config: &TrainConfig) {
     let mut vars = Vars::initial_vars(data, &params);
     let rng = thread_rng();
     let meta = data.meta.clone();

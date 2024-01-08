@@ -24,7 +24,7 @@ use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::train::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
-use crate::train::worker::train_chain;
+use crate::train::worker::train_worker;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
 
 #[derive(Clone)]
@@ -64,7 +64,7 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for TrainWorkerLauncher {
     fn launch(self, in_sender: Sender<MessageToCentral>, out_receiver: Receiver<MessageToWorker>,
               i_thread: usize) {
         let TrainWorkerLauncher { data, params, config } = self;
-        train_chain(&data, params, in_sender, out_receiver, i_thread, &config);
+        train_worker(&data, params, in_sender, out_receiver, i_thread, &config);
     }
 }
 
