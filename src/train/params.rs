@@ -63,6 +63,15 @@ impl Params {
         }
     }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
+    pub(crate) fn reduce_to(&self, trait_names: Arc<Vec<String>>, is_cols: &[usize]) -> Params {
+        let mu = self.mu;
+        let tau = self.tau;
+        let betas: Vec<f64> =
+            is_cols.iter().map(|i_col| self.betas[*i_col]).collect();
+        let sigmas: Vec<f64> =
+            is_cols.iter().map(|i_col| self.sigmas[*i_col]).collect();
+        Params { trait_names, mu, tau, betas, sigmas }
+    }
 }
 
 impl Index<ParamIndex> for Params {

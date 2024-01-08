@@ -13,17 +13,12 @@ use crate::options::config::{ClassifyConfig, Config};
 use crate::train::params::Params;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
 use std::io::Write;
+use crate::classify::worker::classify_worker;
 
 #[derive(Clone)]
 pub(crate) enum MessageToWorker {
-    DataPoint(DataPoint),
+    DataPoint(usize),
     Shutdown,
-}
-
-#[derive(Clone)]
-struct DataPoint {
-    i: usize,
-    id: String,
 }
 
 impl OutMessage for MessageToWorker {
@@ -49,7 +44,8 @@ struct ClassifyWorkerLauncher {
 impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLauncher {
     fn launch(self, in_sender: Sender<MessageToCentral>, out_receiver: Receiver<MessageToWorker>,
               i_thread: usize) {
-        todo!()
+        let ClassifyWorkerLauncher { data, params, config } = self;
+        classify_worker(&data, &params, config, in_sender, out_receiver, i_thread);
     }
 }
 
@@ -71,11 +67,7 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let launcher = ClassifyWorkerLauncher { data: data.clone(), params, config: config.clone() };
     let threads = Threads::new(launcher, n_threads);
     let out_messages =
-        data.meta.var_ids.iter().enumerate()
-            .map(|(i, id)| {
-                let id = id.clone();
-                MessageToWorker::DataPoint(DataPoint { i, id })
-            });
+        (0..data.meta.n_data_points()).map(MessageToWorker::DataPoint);
     let in_messages = threads.task_queue(out_messages)?;
     let mus: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu).collect();
@@ -90,7 +82,7 @@ fn read_params(file: &str) -> Result<Params, Error> {
 }
 
 fn write_mus_to_file(file: &str, meta: &Meta, mus: &[f64]) -> Result<(), Error> {
-    let mut writer =  BufWriter::new(File::create(file)?);
+    let mut writer = BufWriter::new(File::create(file)?);
     writeln!(writer, "id\tmu")?;
     for (id, mu) in meta.var_ids.iter().zip(mus.iter()) {
         writeln!(writer, "{}\t{}", id, mu)?;

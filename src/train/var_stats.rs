@@ -83,4 +83,16 @@ impl VarStats {
         let trait_names = meta.trait_names.clone();
         Params { trait_names, mu, tau, betas, sigmas }
     }
+    pub(crate) fn calculate_mu(&self) -> f64 {
+        let meta = &self.meta;
+        let n_f = self.n as f64;
+        let n_data_points = meta.n_data_points();
+        let n_data_points_f = n_data_points as f64;
+        let mut sum_for_mu: f64 = 0.0;
+        for j in 0..n_data_points {
+            let mean_e_j = self.e_sums[j] / n_f;
+            sum_for_mu += mean_e_j;
+        }
+        sum_for_mu / n_data_points_f
+    }
 }

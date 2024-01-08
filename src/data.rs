@@ -42,6 +42,26 @@ impl Meta {
 impl GwasData {
     pub(crate) fn n_data_points(&self) -> usize { self.meta.n_data_points() }
     pub(crate) fn n_traits(&self) -> usize { self.meta.n_traits() }
+    pub(crate) fn only_data_point(&self, i_row: usize) -> (GwasData, Vec<usize>) {
+        let var_id = self.meta.var_ids[i_row].clone();
+        let var_ids = Arc::new(vec![var_id]);
+        let mut is_col: Vec<usize> = Vec::new();
+        for i_col in 0..self.n_traits() {
+            if self.betas[i_row][i_col].is_finite() && self.betas[i_row][i_col].is_finite() {
+                is_col.push(i_col)
+            }
+        }
+        let trait_names: Arc<Vec<String>> =
+            Arc::new(is_col.iter().map(|i_col| self
+                .meta.trait_names[*i_col].clone()).collect());
+        let meta = Meta { var_ids, trait_names };
+        let n_cols = meta.n_traits();
+        let betas =
+            Matrix::fill(1, n_cols, |_, i_i_col| self.betas[i_row][is_col[i_i_col]]);
+        let ses =
+            Matrix::fill(1, n_cols, |_, i_i_col| self.ses[i_row][is_col[i_i_col]]);
+        (GwasData { meta, betas, ses }, is_col)
+    }
 }
 
 impl Display for BetaSe {

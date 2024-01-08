@@ -1,6 +1,6 @@
-mod sampler;
+pub(crate) mod sampler;
 pub(crate) mod params;
-mod vars;
+pub(crate) mod vars;
 mod worker;
 pub(crate) mod param_meta_stats;
 mod initial_params;
