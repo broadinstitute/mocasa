@@ -71,6 +71,7 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                 let in_message = self.in_receiver.recv()?;
                 let i_thread_in = in_message.i_thread();
                 let i_task = task_by_thread[i_thread_in].unwrap();
+                println!("Completed task {}", i_task);
                 task_by_thread[i_thread_in] = None;
                 if in_messages.len() < i_task + 1 {
                     while in_messages.len() < i_task {
@@ -85,6 +86,7 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
             }
         }
         let in_messages: Vec<I> = in_messages.into_iter().flatten().collect();
+        println!("Completed all {} tasks", in_messages.len());
         Ok(in_messages)
     }
 }

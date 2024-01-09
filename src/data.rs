@@ -47,13 +47,14 @@ impl GwasData {
         let var_ids = Arc::new(vec![var_id]);
         let mut is_col: Vec<usize> = Vec::new();
         for i_col in 0..self.n_traits() {
-            if self.betas[i_row][i_col].is_finite() && self.betas[i_row][i_col].is_finite() {
+            if self.betas[i_row][i_col].is_finite() && self.ses[i_row][i_col].is_finite() {
                 is_col.push(i_col)
             }
         }
         let trait_names: Arc<Vec<String>> =
-            Arc::new(is_col.iter().map(|i_col| self
-                .meta.trait_names[*i_col].clone()).collect());
+            Arc::new(is_col.iter().map(|&i_col|
+                self.meta.trait_names[i_col].clone())
+                .collect());
         let meta = Meta { var_ids, trait_names };
         let n_cols = meta.n_traits();
         let betas =

@@ -1,4 +1,5 @@
 mod worker;
+mod exact;
 
 use std::cmp;
 use std::fs::{File, read_to_string};
@@ -27,7 +28,8 @@ impl OutMessage for MessageToWorker {
 
 pub(crate) struct MessageToCentral {
     i_thread: usize,
-    mu: f64,
+    mu_sampled: f64,
+    mu_calculated: f64,
 }
 
 impl InMessage for MessageToCentral {
@@ -69,9 +71,11 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let out_messages =
         (0..data.meta.n_data_points()).map(MessageToWorker::DataPoint);
     let in_messages = threads.task_queue(out_messages)?;
-    let mus: Vec<f64> =
-        in_messages.iter().map(|in_message| in_message.mu).collect();
-    write_mus_to_file(&config.out_file, &data.meta, &mus)?;
+    let mus_sampled: Vec<f64> =
+        in_messages.iter().map(|in_message| in_message.mu_sampled).collect();
+    let mus_calculated: Vec<f64> =
+        in_messages.iter().map(|in_message| in_message.mu_calculated).collect();
+    write_mus_to_file(&config.out_file, &data.meta, &mus_sampled, &mus_calculated)?;
     Ok(())
 }
 
@@ -81,11 +85,13 @@ fn read_params(file: &str) -> Result<Params, Error> {
     Ok(params)
 }
 
-fn write_mus_to_file(file: &str, meta: &Meta, mus: &[f64]) -> Result<(), Error> {
+fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], mus_calculated: &[f64])
+                     -> Result<(), Error> {
     let mut writer = BufWriter::new(File::create(file)?);
-    writeln!(writer, "id\tmu")?;
-    for (id, mu) in meta.var_ids.iter().zip(mus.iter()) {
-        writeln!(writer, "{}\t{}", id, mu)?;
+    writeln!(writer, "id\tmu_samp\tmu_calc")?;
+    for ((id, &mu_sampled), &mu_calculated)
+    in meta.var_ids.iter().zip(mus_sampled.iter()).zip(mus_calculated.iter()) {
+        writeln!(writer, "{}\t{}\t{}", id, mu_sampled, mu_calculated)?;
     }
     Ok(())
 }
