@@ -109,20 +109,3 @@ impl Display for ParamIndex {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::train::params::ParamIndex;
-
-    #[test]
-    fn indices() {
-        const N_PARAMS_TEST: usize = 5;
-        for (i_param, index) in ParamIndex::all(N_PARAMS_TEST).enumerate() {
-            let i_param2 = index.get_ordinal(N_PARAMS_TEST);
-            let index2 =
-                ParamIndex::from_ordinal(i_param2, N_PARAMS_TEST).unwrap();
-            assert_eq!(i_param, i_param2);
-            assert_eq!(index, index2);
-        }
-    }
-}

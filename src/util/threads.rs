@@ -10,6 +10,14 @@ pub(crate) trait OutMessage: Send + Clone {
     const SHUTDOWN: Self;
 }
 
+pub(crate) trait TaskQueueObserver<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
+    fn going_to_start_queue(&mut self);
+    fn going_to_send(&mut self, out_message: &O, i_task: usize, i_thread: usize);
+    fn have_received(&mut self, in_message: &I, i_task: usize, i_thread: usize);
+    fn nothing_more_to_send(&mut self);
+    fn completed_queue(&mut self);
+}
+
 pub(crate) struct Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
     pub(crate) in_receiver: Receiver<I>,
     pub(crate) out_senders: Vec<Sender<O>>,
@@ -45,7 +53,9 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
         let responses: Vec<I> = responses_opts.into_iter().flatten().collect();
         Ok(responses)
     }
-    pub(crate) fn task_queue<T: Iterator<Item=O>>(&self, out_messages: T) -> Result<Vec<I>, Error> {
+    pub(crate) fn task_queue<T: Iterator<Item=O>, B: TaskQueueObserver<I, O>>(&self, out_messages: T,
+                                                                              observer: &mut B) -> Result<Vec<I>, Error> {
+        observer.going_to_start_queue();
         let mut maybe_more_out = true;
         let mut waiting_for_in = false;
         let mut task_by_thread: Vec<Option<usize>> =
@@ -57,9 +67,14 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                 while let Some((i_thread_out, _)) =
                     task_by_thread.iter().enumerate()
                         .find(|(_, i_task)| i_task.is_none()) {
+                    println!("Available thread {}", i_thread_out);
                     match out_iter.next() {
-                        None => { maybe_more_out = false }
+                        None => {
+                            maybe_more_out = false;
+                            break
+                        }
                         Some((i_task, out_message)) => {
+                            observer.going_to_send(&out_message, i_task, i_thread_out);
                             self.out_senders[i_thread_out].send(out_message)?;
                             task_by_thread[i_thread_out] = Some(i_task);
                             waiting_for_in = true;
@@ -67,11 +82,12 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                     }
                 }
             }
+            println!("A: waiting_for_in = {}", waiting_for_in);
             if waiting_for_in {
                 let in_message = self.in_receiver.recv()?;
                 let i_thread_in = in_message.i_thread();
                 let i_task = task_by_thread[i_thread_in].unwrap();
-                println!("Completed task {}", i_task);
+                observer.have_received(&in_message, i_task, i_thread_in);
                 task_by_thread[i_thread_in] = None;
                 if in_messages.len() < i_task + 1 {
                     while in_messages.len() < i_task {
@@ -82,11 +98,12 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                     in_messages[i_task] = Some(in_message);
                 }
                 waiting_for_in =
-                    task_by_thread.iter().any(|i_task_opt| i_task_opt.is_some())
+                    task_by_thread.iter().any(|i_task_opt| i_task_opt.is_some());
+                println!("B: waiting_for_in = {}", waiting_for_in);
             }
         }
         let in_messages: Vec<I> = in_messages.into_iter().flatten().collect();
-        println!("Completed all {} tasks", in_messages.len());
+        observer.completed_queue();
         Ok(in_messages)
     }
 }
@@ -126,4 +143,99 @@ fn launch_workers<I, O, L>(in_sender: Sender<I>, launcher: L, n_threads: usize)
         senders.push(out_sender);
     }
     (join_handles, senders)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::{Receiver, Sender};
+    use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
+
+    #[derive(Clone)]
+    enum TestOutMessage {
+        Ping,
+        Shutdown,
+    }
+
+    impl OutMessage for TestOutMessage {
+        const SHUTDOWN: Self = TestOutMessage::Shutdown;
+    }
+
+    struct TestInMessage {
+        i_thread: usize,
+    }
+
+    impl InMessage for TestInMessage {
+        fn i_thread(&self) -> usize { self.i_thread }
+    }
+
+    #[derive(Clone)]
+    struct TestWorkerLauncher {}
+
+    impl WorkerLauncher<TestInMessage, TestOutMessage> for TestWorkerLauncher {
+        fn launch(self, in_sender: Sender<TestInMessage>, out_receiver: Receiver<TestOutMessage>,
+                  i_thread: usize) {
+            loop {
+                let out_message = out_receiver.recv().unwrap();
+                match out_message {
+                    TestOutMessage::Ping => {
+                        let in_message = TestInMessage { i_thread };
+                        in_sender.send(in_message).unwrap();
+                    }
+                    TestOutMessage::Shutdown => { break; }
+                }
+            }
+        }
+    }
+
+    enum TestObservation {
+        Start, Send(usize, usize), Received(usize, usize), DoneSending, Complete
+    }
+
+    struct TestObserver {
+        observations: Vec<TestObservation>
+    }
+
+    impl TestObserver {
+        fn new() -> TestObserver {
+            let observations: Vec<TestObservation> = Vec::new();
+            TestObserver {observations}
+        }
+    }
+
+    impl TaskQueueObserver<TestInMessage, TestOutMessage> for TestObserver {
+        fn going_to_start_queue(&mut self) {
+            println!("Starting queue");
+            self.observations.push(TestObservation::Start)
+        }
+
+        fn going_to_send(&mut self, out_message: &TestOutMessage, i_task: usize, i_thread: usize) {
+            println!("Going to send task {} to thread {}", i_task, i_thread);
+            self.observations.push(TestObservation::Send(i_task, i_thread))
+        }
+
+        fn have_received(&mut self, in_message: &TestInMessage, i_task: usize, i_thread: usize) {
+            println!("Received task {} from thread {}", i_task, i_thread);
+            self.observations.push(TestObservation::Received(i_task, i_thread))
+        }
+
+        fn nothing_more_to_send(&mut self) {
+            println!("Nothing more to send");
+            self.observations.push(TestObservation::DoneSending)
+        }
+
+        fn completed_queue(&mut self) {
+            println!("Complete");
+            self.observations.push(TestObservation::Complete)
+        }
+    }
+
+    #[test]
+    fn test_queue() {
+        const N_TASKS: usize = 10;
+        let launcher = TestWorkerLauncher {};
+        let threads = Threads::new(launcher, 3);
+        let mut observer = TestObserver::new();
+        let out_messages: Vec<TestOutMessage> = vec![TestOutMessage::Ping; N_TASKS];
+        threads.task_queue(out_messages.into_iter(), &mut observer).unwrap();
+    }
 }

@@ -12,7 +12,7 @@ use crate::error::{Error, for_file};
 use crate::options::action::Action;
 use crate::options::config::{ClassifyConfig, Config};
 use crate::train::params::Params;
-use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
+use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
 use crate::classify::worker::classify_worker;
 
@@ -34,6 +34,55 @@ pub(crate) struct MessageToCentral {
 
 impl InMessage for MessageToCentral {
     fn i_thread(&self) -> usize { self.i_thread }
+}
+
+struct Observer {
+    writer: BufWriter<File>
+}
+
+impl Observer {
+    fn new(file_name: &str) -> Result<Observer, Error> {
+        let writer = BufWriter::new(File::create(file_name)?);
+        Ok(Observer { writer })
+    }
+}
+
+impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
+    fn going_to_start_queue(&mut self) {
+        println!("Starting to classify data points.");
+        if let Err(error) = writeln!(self.writer, "samples\tcalculated") {
+            println!("Cannot write temp file: {}", error)
+        }
+    }
+
+    fn going_to_send(&mut self, out_message: &MessageToWorker, i_task: usize, i_thread: usize) {
+        match out_message {
+            MessageToWorker::DataPoint(i_data_point) => {
+                println!("Sent {} as task {} for thread {}.", i_data_point, i_task, i_thread)
+            }
+            MessageToWorker::Shutdown => {
+                println!("Sent shutdown as task {} to thread {}", i_task, i_thread)
+            }
+        }
+    }
+
+    fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, i_thread: usize) {
+        let mu_sampled = in_message.mu_sampled;
+        let mu_calculated = in_message.mu_calculated;
+        println!("Got mu_sampled = {} and mu_calculated = {} as task {} from thread {}",
+                 mu_sampled, mu_calculated, i_task, i_thread);
+        if let Err(error) = writeln!(self.writer, "{}\t{}", mu_sampled, mu_calculated) {
+            println!("Cannot write temp file: {}", error)
+        }
+    }
+
+    fn nothing_more_to_send(&mut self) {
+        println!("No more data points to add to queue.")
+    }
+
+    fn completed_queue(&mut self) {
+        println!("Completed classification of all data points.")
+    }
 }
 
 #[derive(Clone)]
@@ -70,7 +119,9 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let threads = Threads::new(launcher, n_threads);
     let out_messages =
         (0..data.meta.n_data_points()).map(MessageToWorker::DataPoint);
-    let in_messages = threads.task_queue(out_messages)?;
+    let temp_out_file = format!("{}_tmp", config.out_file);
+    let mut observer = Observer::new(&temp_out_file)?;
+    let in_messages = threads.task_queue(out_messages, &mut observer)?;
     let mus_sampled: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu_sampled).collect();
     let mus_calculated: Vec<f64> =
