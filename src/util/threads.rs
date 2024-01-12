@@ -67,10 +67,10 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                 while let Some((i_thread_out, _)) =
                     task_by_thread.iter().enumerate()
                         .find(|(_, i_task)| i_task.is_none()) {
-                    println!("Available thread {}", i_thread_out);
                     match out_iter.next() {
                         None => {
                             maybe_more_out = false;
+                            observer.nothing_more_to_send();
                             break;
                         }
                         Some((i_task, out_message)) => {
@@ -82,7 +82,6 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                     }
                 }
             }
-            println!("A: waiting_for_in = {}", waiting_for_in);
             if waiting_for_in {
                 let in_message = self.in_receiver.recv()?;
                 let i_thread_in = in_message.i_thread();
@@ -99,7 +98,6 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                 }
                 waiting_for_in =
                     task_by_thread.iter().any(|i_task_opt| i_task_opt.is_some());
-                println!("B: waiting_for_in = {}", waiting_for_in);
             }
         }
         let in_messages: Vec<I> = in_messages.into_iter().flatten().collect();
@@ -187,14 +185,6 @@ mod tests {
         }
     }
 
-    enum TestObservation {
-        Start,
-        Send(usize, usize),
-        Received(usize, usize),
-        DoneSending,
-        Complete,
-    }
-
     struct TestObserver {
         n_start_calls: usize,
         n_send_calls: usize,
@@ -205,7 +195,6 @@ mod tests {
 
     impl TestObserver {
         fn new() -> TestObserver {
-            let observations: Vec<TestObservation> = Vec::new();
             let n_start_calls: usize = 0;
             let n_send_calls: usize = 0;
             let n_receive_calls: usize = 0;
@@ -223,10 +212,14 @@ mod tests {
         }
 
         fn going_to_send(&mut self, out_message: &TestOutMessage, i_task: usize, i_thread: usize) {
+            assert!(matches!(out_message,TestOutMessage::Ping));
+            assert!(i_task >= i_thread);
             self.n_send_calls += 1;
         }
 
         fn have_received(&mut self, in_message: &TestInMessage, i_task: usize, i_thread: usize) {
+            assert_eq!(in_message.i_thread, i_thread);
+            assert!(i_task >= i_thread);
             self.n_receive_calls += 1;
         }
 
@@ -242,7 +235,6 @@ mod tests {
     #[test]
     fn test_queue() {
         const N_TASKS: usize = 10;
-        const N_THREADS: usize = 3;
         for n_threads in 1usize..4 {
             let launcher = TestWorkerLauncher {};
             let threads = Threads::new(launcher, n_threads);
