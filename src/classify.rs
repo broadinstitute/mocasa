@@ -37,28 +37,31 @@ impl InMessage for MessageToCentral {
 }
 
 struct Observer {
+    var_ids: Arc<Vec<String>>,
     writer: BufWriter<File>
 }
 
 impl Observer {
-    fn new(file_name: &str) -> Result<Observer, Error> {
+    fn new(var_ids: &Arc<Vec<String>>, file_name: &str) -> Result<Observer, Error> {
+        let var_ids = var_ids.clone();
         let writer = BufWriter::new(File::create(file_name)?);
-        Ok(Observer { writer })
+        Ok(Observer { var_ids, writer })
     }
 }
 
 impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     fn going_to_start_queue(&mut self) {
         println!("Starting to classify data points.");
-        if let Err(error) = writeln!(self.writer, "samples\tcalculated") {
+        if let Err(error) = writeln!(self.writer, "var_id\tsamples\tcalculated") {
             println!("Cannot write temp file: {}", error)
         }
     }
 
     fn going_to_send(&mut self, out_message: &MessageToWorker, i_task: usize, i_thread: usize) {
-        match out_message {
+        match *out_message {
             MessageToWorker::DataPoint(i_data_point) => {
-                println!("Sent {} as task {} for thread {}.", i_data_point, i_task, i_thread)
+                let var_id = &self.var_ids[i_data_point];
+                println!("Sent {} as task {} for thread {}.", var_id, i_task, i_thread)
             }
             MessageToWorker::Shutdown => {
                 println!("Sent shutdown as task {} to thread {}", i_task, i_thread)
@@ -69,9 +72,12 @@ impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, i_thread: usize) {
         let mu_sampled = in_message.mu_sampled;
         let mu_calculated = in_message.mu_calculated;
-        println!("Got mu_sampled = {} and mu_calculated = {} as task {} from thread {}",
-                 mu_sampled, mu_calculated, i_task, i_thread);
-        if let Err(error) = writeln!(self.writer, "{}\t{}", mu_sampled, mu_calculated) {
+        let var_id = &self.var_ids[i_task];
+        println!("Got mu_sampled = {} and mu_calculated = {} for {} from thread {}",
+                 mu_sampled, mu_calculated, var_id, i_thread);
+        let io_result =
+            writeln!(self.writer, "{}\t{}\t{}", var_id, mu_sampled, mu_calculated);
+        if let Err(error) = io_result {
             println!("Cannot write temp file: {}", error)
         }
     }
@@ -117,16 +123,17 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let config = config.classify.clone();
     let launcher = ClassifyWorkerLauncher { data: data.clone(), params, config: config.clone() };
     let threads = Threads::new(launcher, n_threads);
+    let meta = &data.meta;
     let out_messages =
-        (0..data.meta.n_data_points()).map(MessageToWorker::DataPoint);
+        (0..meta.n_data_points()).map(MessageToWorker::DataPoint);
     let temp_out_file = format!("{}_tmp", config.out_file);
-    let mut observer = Observer::new(&temp_out_file)?;
+    let mut observer = Observer::new(&meta.var_ids, &temp_out_file)?;
     let in_messages = threads.task_queue(out_messages, &mut observer)?;
     let mus_sampled: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu_sampled).collect();
     let mus_calculated: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu_calculated).collect();
-    write_mus_to_file(&config.out_file, &data.meta, &mus_sampled, &mus_calculated)?;
+    write_mus_to_file(&config.out_file, meta, &mus_sampled, &mus_calculated)?;
     Ok(())
 }
 

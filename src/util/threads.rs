@@ -71,7 +71,7 @@ impl<I, O> Threads<I, O> where I: InMessage + 'static, O: OutMessage + 'static {
                     match out_iter.next() {
                         None => {
                             maybe_more_out = false;
-                            break
+                            break;
                         }
                         Some((i_task, out_message)) => {
                             observer.going_to_send(&out_message, i_task, i_thread_out);
@@ -188,54 +188,72 @@ mod tests {
     }
 
     enum TestObservation {
-        Start, Send(usize, usize), Received(usize, usize), DoneSending, Complete
+        Start,
+        Send(usize, usize),
+        Received(usize, usize),
+        DoneSending,
+        Complete,
     }
 
     struct TestObserver {
-        observations: Vec<TestObservation>
+        n_start_calls: usize,
+        n_send_calls: usize,
+        n_receive_calls: usize,
+        n_no_more_send_calls: usize,
+        n_complete_calls: usize,
     }
 
     impl TestObserver {
         fn new() -> TestObserver {
             let observations: Vec<TestObservation> = Vec::new();
-            TestObserver {observations}
+            let n_start_calls: usize = 0;
+            let n_send_calls: usize = 0;
+            let n_receive_calls: usize = 0;
+            let n_no_more_send_calls: usize = 0;
+            let n_complete_calls: usize = 0;
+            TestObserver {
+                n_start_calls, n_send_calls, n_receive_calls, n_no_more_send_calls, n_complete_calls
+            }
         }
     }
 
     impl TaskQueueObserver<TestInMessage, TestOutMessage> for TestObserver {
         fn going_to_start_queue(&mut self) {
-            println!("Starting queue");
-            self.observations.push(TestObservation::Start)
+            self.n_start_calls += 1;
         }
 
         fn going_to_send(&mut self, out_message: &TestOutMessage, i_task: usize, i_thread: usize) {
-            println!("Going to send task {} to thread {}", i_task, i_thread);
-            self.observations.push(TestObservation::Send(i_task, i_thread))
+            self.n_send_calls += 1;
         }
 
         fn have_received(&mut self, in_message: &TestInMessage, i_task: usize, i_thread: usize) {
-            println!("Received task {} from thread {}", i_task, i_thread);
-            self.observations.push(TestObservation::Received(i_task, i_thread))
+            self.n_receive_calls += 1;
         }
 
         fn nothing_more_to_send(&mut self) {
-            println!("Nothing more to send");
-            self.observations.push(TestObservation::DoneSending)
+            self.n_no_more_send_calls += 1;
         }
 
         fn completed_queue(&mut self) {
-            println!("Complete");
-            self.observations.push(TestObservation::Complete)
+            self.n_complete_calls += 1;
         }
     }
 
     #[test]
     fn test_queue() {
         const N_TASKS: usize = 10;
-        let launcher = TestWorkerLauncher {};
-        let threads = Threads::new(launcher, 3);
-        let mut observer = TestObserver::new();
-        let out_messages: Vec<TestOutMessage> = vec![TestOutMessage::Ping; N_TASKS];
-        threads.task_queue(out_messages.into_iter(), &mut observer).unwrap();
+        const N_THREADS: usize = 3;
+        for n_threads in 1usize..4 {
+            let launcher = TestWorkerLauncher {};
+            let threads = Threads::new(launcher, n_threads);
+            let mut observer = TestObserver::new();
+            let out_messages: Vec<TestOutMessage> = vec![TestOutMessage::Ping; N_TASKS];
+            threads.task_queue(out_messages.into_iter(), &mut observer).unwrap();
+            assert_eq!(observer.n_start_calls, 1);
+            assert_eq!(observer.n_send_calls, N_TASKS);
+            assert_eq!(observer.n_receive_calls, N_TASKS);
+            assert_eq!(observer.n_no_more_send_calls, 1);
+            assert_eq!(observer.n_complete_calls, 1);
+        }
     }
 }
