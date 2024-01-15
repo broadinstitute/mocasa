@@ -16,12 +16,12 @@ pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
     let rng = thread_rng();
     let meta = data.meta.clone();
     let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
-    sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in);
+    sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in, &mut None);
     loop {
         let in_message = receiver.recv().unwrap();
         match in_message {
             MessageToWorker::TakeNSamples(n_samples) => {
-                sampler.sample_n(data, &params, &mut vars, n_samples);
+                sampler.sample_n(data, &params, &mut vars, n_samples, &mut None);
                 let params_new = sampler.var_stats().compute_new_params();
                 sender
                     .send(MessageToCentral::new(i_thread, params_new))
@@ -29,7 +29,8 @@ pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
             }
             MessageToWorker::SetNewParams(params_new) => {
                 params = params_new;
-                sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in);
+                sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in,
+                                 &mut None);
             }
             MessageToWorker::Shutdown => {
                 break;

@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use rand::prelude::ThreadRng;
@@ -7,8 +9,20 @@ use crate::data::GwasData;
 use crate::options::config::ClassifyConfig;
 use crate::train::vars::Vars;
 use crate::train::params::Params;
-use crate::train::sampler::Sampler;
+use crate::train::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
+
+struct ClassifyETracer<W: Write> {
+    writer: W,
+}
+
+impl<W: Write> ETracer for ClassifyETracer<W> {
+    fn trace_e(&mut self, e: f64) {
+        if let Err(error) = writeln!(self.writer, "{}", e) {
+            println!("Could not write E trace: {}", error)
+        }
+    }
+}
 
 pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: ClassifyConfig,
                               sender: Sender<MessageToCentral>,
@@ -24,8 +38,34 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let rng = thread_rng();
                 let meta = data.meta.clone();
                 let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
-                sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in);
-                sampler.sample_n(&data, &params, &mut vars, config.n_samples);
+                let mut e_tracer =
+                    if config.trace.unwrap_or(false) {
+                        let trace_file_name = {
+                            let mut temp = config.out_file.clone();
+                            temp.push('_');
+                            temp.push_str(
+                                data.meta.var_ids.first()
+                                    .unwrap_or(&"unknown".to_string())
+                            );
+                            temp
+                        };
+                        match File::create(trace_file_name) {
+                            Ok(file) => {
+                                let writer = BufWriter::new(file);
+                                let e_tracer = ClassifyETracer { writer };
+                                Some(Box::new(e_tracer) as Box<dyn ETracer>)
+                            }
+                            Err(error) => {
+                                println!("Could not create E trace file: {}", error);
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in, &mut
+                    e_tracer);
+                sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
                 let mu_sampled = sampler.var_stats().calculate_mu();
                 let mu_calculated =
                     calculate_mu(&params, &data.betas[0], &data.ses[0]);

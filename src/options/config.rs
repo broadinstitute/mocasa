@@ -35,7 +35,8 @@ pub(crate) struct TrainConfig {
 pub(crate) struct ClassifyConfig {
     pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples: usize,
-    pub(crate) out_file: String
+    pub(crate) out_file: String,
+    pub(crate) trace: Option<bool>
 }
 
 pub(crate) fn load_config(file: &str) -> Result<Config, Error> {

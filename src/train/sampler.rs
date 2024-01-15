@@ -10,6 +10,10 @@ pub(crate) struct Sampler<R: Rng> {
     var_stats: VarStats,
 }
 
+pub(crate) trait ETracer {
+    fn trace_e(&mut self, e: f64);
+}
+
 impl<R: Rng> Sampler<R> {
     pub(crate) fn new(meta: &Meta, rng: R) -> Sampler<R> {
         let gibbs = GibbsSampler::new(rng);
@@ -17,16 +21,21 @@ impl<R: Rng> Sampler<R> {
         Sampler { gibbs, var_stats }
     }
     pub(crate) fn sample_n(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
-                           n_steps: usize) {
+                           n_steps: usize, e_tracer: &mut Option<Box<dyn ETracer>>) {
         for _ in 0..n_steps {
-            self.sample_one(data, params, vars)
+            self.sample_one(data, params, vars, e_tracer)
         }
     }
-    pub(crate) fn sample_one(&mut self, data: &GwasData, params: &Params, vars: &mut Vars) {
+    pub(crate) fn sample_one(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
+    e_tracer: &mut Option<Box<dyn ETracer>>) {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point } => {
-                    vars.es[i_data_point] = self.gibbs.draw_e(vars, params, i_data_point);
+                    let e = self.gibbs.draw_e(vars, params, i_data_point);
+                    if let Some(e_tracer) = e_tracer {
+                        e_tracer.trace_e(e);
+                    }
+                    vars.es[i_data_point] = e;
                 }
                 VarIndex::T { i_data_point, i_trait } => {
                     vars.ts[i_data_point][i_trait] =
