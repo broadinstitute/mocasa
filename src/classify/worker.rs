@@ -39,29 +39,29 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let meta = data.meta.clone();
                 let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
                 let mut e_tracer =
-                    if config.trace.unwrap_or(false) {
-                        let trace_file_name = {
-                            let mut temp = config.out_file.clone();
-                            temp.push('_');
-                            temp.push_str(
-                                data.meta.var_ids.first()
-                                    .unwrap_or(&"unknown".to_string())
-                            );
-                            temp
-                        };
-                        match File::create(trace_file_name) {
-                            Ok(file) => {
-                                let writer = BufWriter::new(file);
-                                let e_tracer = ClassifyETracer { writer };
-                                Some(Box::new(e_tracer) as Box<dyn ETracer>)
-                            }
-                            Err(error) => {
-                                println!("Could not create E trace file: {}", error);
-                                None
+                    match (&config.trace_ids, data.meta.var_ids.first()) {
+                        (Some(trace_ids), Some(var_id))
+                        if trace_ids.contains(var_id)
+                        => {
+                            let trace_file_name = {
+                                let mut temp = config.out_file.clone();
+                                temp.push('_');
+                                temp.push_str(var_id);
+                                temp
+                            };
+                            match File::create(trace_file_name) {
+                                Ok(file) => {
+                                    let writer = BufWriter::new(file);
+                                    let e_tracer = ClassifyETracer { writer };
+                                    Some(Box::new(e_tracer) as Box<dyn ETracer>)
+                                }
+                                Err(error) => {
+                                    println!("Could not create E trace file: {}", error);
+                                    None
+                                }
                             }
                         }
-                    } else {
-                        None
+                        _ => { None }
                     };
                 sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in, &mut
                     e_tracer);
