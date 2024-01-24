@@ -26,12 +26,11 @@ n_iterations_per_round = 1000
 n_rounds = 10000
 
 [classify]
-n_steps_burn_in = 10000
-n_samples = 100000
+n_steps_burn_in = 15000
+n_samples = 150000
 out_file = "/humgen/diabetes2/users/oliverr/mocasa/test/mus"
 trace_ids = [
     "11_59460872_A_G", "12_41748768_T_C", "12_97340198_T_C", "19_49657334_A_G", "20_47234885_C_T", "2_70269302_T_C",
     "4_90694497_A_G", "5_161116559_T_C", "6_77127735_G_A", "8_113737999_G_C"
 ]
-
 
