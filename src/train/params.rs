@@ -21,6 +21,12 @@ pub(crate) enum ParamIndex {
     Sigma(usize),
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct ParamsOverride {
+    mu: Option<f64>,
+    tau: Option<f64>
+}
+
 impl ParamIndex {
     pub(crate) fn all(n_traits: usize) -> impl Iterator<Item=ParamIndex> {
         vec![ParamIndex::Mu, ParamIndex::Tau].into_iter()
@@ -72,6 +78,12 @@ impl Params {
             is_cols.iter().map(|i_col| self.sigmas[*i_col]).collect();
         Params { trait_names, mu, tau, betas, sigmas }
     }
+    pub(crate) fn plus_overwrite(self, overwrite: &ParamsOverride) -> Params {
+        let Params { trait_names, mu, tau, betas, sigmas } = self;
+        let mu = overwrite.mu.unwrap_or(mu);
+        let tau = overwrite.tau.unwrap_or(tau);
+        Params { trait_names, mu, tau, betas, sigmas }
+     }
 }
 
 impl Index<ParamIndex> for Params {

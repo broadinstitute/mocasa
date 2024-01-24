@@ -1,6 +1,7 @@
 use std::fs::read_to_string;
 use serde::Deserialize;
 use crate::error::Error;
+use crate::train::params::ParamsOverride;
 
 #[derive(Deserialize)]
 pub(crate) struct Config {
@@ -33,6 +34,7 @@ pub(crate) struct TrainConfig {
 
 #[derive(Deserialize, Clone)]
 pub(crate) struct ClassifyConfig {
+    pub(crate) params_override: Option<ParamsOverride>,
     pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples: usize,
     pub(crate) out_file: String,

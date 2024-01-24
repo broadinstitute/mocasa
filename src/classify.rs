@@ -110,6 +110,17 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLaunche
 
 pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let params = read_params(&config.files.params)?;
+    println!("Read from file mu = {}, tau = {}", params.mu, params.tau);
+
+    let params =
+        match &config.classify.params_override {
+            None => { params }
+            Some(overwrite) => {
+                let params = params.plus_overwrite(overwrite);
+                println!("After overwrite, mu = {}, tau = {}", params.mu, params.tau);
+                params
+            }
+        };
     let data = load_data(config, Action::Classify)?;
     if dry {
         println!("User picked dry run only, so doing nothing.")
