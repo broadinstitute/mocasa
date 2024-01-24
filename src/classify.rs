@@ -53,7 +53,7 @@ impl Observer {
 impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     fn going_to_start_queue(&mut self) {
         println!("Starting to classify data points.");
-        if let Err(error) = writeln!(self.writer, "var_id\tsamples\tsig_sampled\tcalculated") {
+        if let Err(error) = writeln!(self.writer, "id\tmu_samp\tsig_samp\tmu_calc") {
             println!("Cannot write temp file: {}", error)
         }
     }
