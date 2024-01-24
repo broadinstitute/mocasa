@@ -12,6 +12,11 @@ pub(crate) struct VarStats {
     t2_sums: Matrix,
 }
 
+pub(crate) struct MuSig {
+    pub(crate) mu: f64,
+    pub(crate) sig: f64
+}
+
 impl VarStats {
     pub(crate) fn new(meta: Meta) -> VarStats {
         let n: usize = 0;
@@ -83,16 +88,21 @@ impl VarStats {
         let trait_names = meta.trait_names.clone();
         Params { trait_names, mu, tau, betas, sigmas }
     }
-    pub(crate) fn calculate_mu(&self) -> f64 {
+    pub(crate) fn calculate_mu_sig(&self) -> MuSig {
         let meta = &self.meta;
         let n_f = self.n as f64;
         let n_data_points = meta.n_data_points();
         let n_data_points_f = n_data_points as f64;
         let mut sum_for_mu: f64 = 0.0;
+        let mut sum_for_mu_mu: f64 = 0.0;
         for j in 0..n_data_points {
             let mean_e_j = self.e_sums[j] / n_f;
             sum_for_mu += mean_e_j;
+            let mean_e2_j = self.e2_sums[j] / n_f;
+            sum_for_mu_mu += mean_e2_j;
         }
-        sum_for_mu / n_data_points_f
+        let mu = sum_for_mu / n_data_points_f;
+        let sig = (sum_for_mu_mu / n_data_points_f).sqrt();
+        MuSig { mu, sig }
     }
 }

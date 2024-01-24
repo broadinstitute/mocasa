@@ -11,6 +11,7 @@ use crate::train::vars::Vars;
 use crate::train::params::Params;
 use crate::train::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
+use crate::train::var_stats::MuSig;
 
 struct ClassifyETracer<W: Write> {
     writer: W,
@@ -66,10 +67,10 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in, &mut
                     e_tracer);
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
-                let mu_sampled = sampler.var_stats().calculate_mu();
+                let MuSig { mu: mu_sampled, sig: sig_sampled }  = sampler.var_stats().calculate_mu_sig();
                 let mu_calculated =
                     calculate_mu(&params, &data.betas[0], &data.ses[0]);
-                sender.send(MessageToCentral { i_thread, mu_sampled, mu_calculated }).unwrap();
+                sender.send(MessageToCentral { i_thread, mu_sampled, sig_sampled, mu_calculated }).unwrap();
             }
             MessageToWorker::Shutdown => {
                 break;

@@ -29,6 +29,7 @@ impl OutMessage for MessageToWorker {
 pub(crate) struct MessageToCentral {
     i_thread: usize,
     mu_sampled: f64,
+    sig_sampled: f64,
     mu_calculated: f64,
 }
 
@@ -52,7 +53,7 @@ impl Observer {
 impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     fn going_to_start_queue(&mut self) {
         println!("Starting to classify data points.");
-        if let Err(error) = writeln!(self.writer, "var_id\tsamples\tcalculated") {
+        if let Err(error) = writeln!(self.writer, "var_id\tsamples\tsig_sampled\tcalculated") {
             println!("Cannot write temp file: {}", error)
         }
     }
@@ -71,12 +72,13 @@ impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
 
     fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, i_thread: usize) {
         let mu_sampled = in_message.mu_sampled;
+        let sig_sampled = in_message.sig_sampled;
         let mu_calculated = in_message.mu_calculated;
         let var_id = &self.var_ids[i_task];
-        println!("Got mu_sampled = {} and mu_calculated = {} for {} from thread {}",
-                 mu_sampled, mu_calculated, var_id, i_thread);
+        println!("Got mu_sampled = {}, sig_sampled = {} and mu_calculated = {} for {} from thread {}",
+                 mu_sampled, sig_sampled, mu_calculated, var_id, i_thread);
         let io_result =
-            writeln!(self.writer, "{}\t{}\t{}", var_id, mu_sampled, mu_calculated);
+            writeln!(self.writer, "{}\t{}\t{}\t{}", var_id, mu_sampled, sig_sampled, mu_calculated);
         if let Err(error) = io_result {
             println!("Cannot write temp file: {}", error)
         }
@@ -131,9 +133,11 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let in_messages = threads.task_queue(out_messages, &mut observer)?;
     let mus_sampled: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu_sampled).collect();
+    let sigs_sampled: Vec<f64> =
+        in_messages.iter().map(|in_message| in_message.sig_sampled).collect();
     let mus_calculated: Vec<f64> =
         in_messages.iter().map(|in_message| in_message.mu_calculated).collect();
-    write_mus_to_file(&config.out_file, meta, &mus_sampled, &mus_calculated)?;
+    write_mus_to_file(&config.out_file, meta, &mus_sampled, &sigs_sampled, &mus_calculated)?;
     Ok(())
 }
 
@@ -143,13 +147,13 @@ fn read_params(file: &str) -> Result<Params, Error> {
     Ok(params)
 }
 
-fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], mus_calculated: &[f64])
+fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], sigs_sampled: &[f64], mus_calculated: &[f64])
                      -> Result<(), Error> {
     let mut writer = BufWriter::new(File::create(file)?);
-    writeln!(writer, "id\tmu_samp\tmu_calc")?;
-    for ((id, &mu_sampled), &mu_calculated)
-    in meta.var_ids.iter().zip(mus_sampled.iter()).zip(mus_calculated.iter()) {
-        writeln!(writer, "{}\t{}\t{}", id, mu_sampled, mu_calculated)?;
+    writeln!(writer, "id\tmu_samp\tsig_samp\tmu_calc")?;
+    for (((id, &mu_sampled),&sig_sampled), &mu_calculated)
+    in meta.var_ids.iter().zip(mus_sampled.iter()).zip(sigs_sampled.iter()).zip(mus_calculated.iter()) {
+        writeln!(writer, "{}\t{}\t{}\t{}", id, mu_sampled, sig_sampled, mu_calculated)?;
     }
     Ok(())
 }
