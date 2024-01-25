@@ -26,7 +26,7 @@ n_iterations_per_round = 1000
 n_rounds = 10000
 
 [classify]
-params_override = { mu = 0.0, tau = 100 }
+params_override = { mu = 0, tau = 10 }
 n_steps_burn_in = 10000
 n_samples = 100000
 out_file = "/humgen/diabetes2/users/oliverr/mocasa/test/mus"
