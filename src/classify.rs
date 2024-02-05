@@ -39,7 +39,7 @@ impl InMessage for MessageToCentral {
 
 struct Observer {
     var_ids: Arc<Vec<String>>,
-    writer: BufWriter<File>
+    writer: BufWriter<File>,
 }
 
 impl Observer {
@@ -59,24 +59,16 @@ impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     }
 
     fn going_to_send(&mut self, out_message: &MessageToWorker, i_task: usize, i_thread: usize) {
-        match *out_message {
-            MessageToWorker::DataPoint(i_data_point) => {
-                let var_id = &self.var_ids[i_data_point];
-                println!("Sent {} as task {} for thread {}.", var_id, i_task, i_thread)
-            }
-            MessageToWorker::Shutdown => {
-                println!("Sent shutdown as task {} to thread {}", i_task, i_thread)
-            }
+        if matches!(out_message, MessageToWorker::Shutdown) {
+            println!("Sent shutdown as task {} to thread {}", i_task, i_thread)
         }
     }
 
-    fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, i_thread: usize) {
+    fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, _: usize) {
         let mu_sampled = in_message.mu_sampled;
         let sig_sampled = in_message.sig_sampled;
         let mu_calculated = in_message.mu_calculated;
         let var_id = &self.var_ids[i_task];
-        println!("Got mu_sampled = {}, sig_sampled = {} and mu_calculated = {} for {} from thread {}",
-                 mu_sampled, sig_sampled, mu_calculated, var_id, i_thread);
         let io_result =
             writeln!(self.writer, "{}\t{}\t{}\t{}", var_id, mu_sampled, sig_sampled, mu_calculated);
         if let Err(error) = io_result {
@@ -162,7 +154,7 @@ fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], sigs_sampled:
                      -> Result<(), Error> {
     let mut writer = BufWriter::new(File::create(file)?);
     writeln!(writer, "id\tmu_samp\tsig_samp\tmu_calc")?;
-    for (((id, &mu_sampled),&sig_sampled), &mu_calculated)
+    for (((id, &mu_sampled), &sig_sampled), &mu_calculated)
     in meta.var_ids.iter().zip(mus_sampled.iter()).zip(sigs_sampled.iter()).zip(mus_calculated.iter()) {
         writeln!(writer, "{}\t{}\t{}\t{}", id, mu_sampled, sig_sampled, mu_calculated)?;
     }
