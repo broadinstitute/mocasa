@@ -24,6 +24,6 @@ pub fn run() -> Result<(), Error> {
                 Action::Classify => { classify::classify_or_check(&config, core_options.dry) }
             }
         }
-        Choice::ImportPhenet(_) => { phenet::import_phenet() }
+        Choice::ImportPhenet(options) => { phenet::import_phenet(&options) }
     }
 }

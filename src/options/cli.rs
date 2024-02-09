@@ -9,9 +9,9 @@ mod params {
     pub(crate) const DRY: &str = "dry";
     pub(crate) const DRY_SHORT: char = 'd';
     pub(crate) const PHENET_FILE: &str = "phenet-file";
-    pub(crate) const PHENET_FILE_SHORT: char = 'h';
+    pub(crate) const PHENET_FILE_SHORT: char = 'i';
     pub(crate) const PARAMS_FILE: &str = "params-file";
-    pub(crate) const PARAMS_FILE_SHORT: char = 'r';
+    pub(crate) const PARAMS_FILE_SHORT: char = 'p';
 }
 
 mod commands {
@@ -26,7 +26,7 @@ pub struct CoreOptions {
 
 pub struct ImportPhenetOptions {
     pub(crate) phenet_file: String,
-    pub(crate) params_file: Option<String>,
+    pub(crate) params_file: String,
     pub(crate) config_file: String,
 }
 
@@ -66,9 +66,12 @@ fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOpti
 fn get_import_phenet_options(sub_matches: &ArgMatches) -> Result<ImportPhenetOptions, Error> {
     let phenet_file =
         sub_matches.get_one::<String>(params::PHENET_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing config file option")
+            Error::from("Missing phenet file option")
         })?;
-    let params_file = sub_matches.get_one::<String>(params::CONFIG_FILE).cloned();
+    let params_file =
+        sub_matches.get_one::<String>(params::PARAMS_FILE).cloned().ok_or_else(|| {
+            Error::from("Missing params file option")
+        })?;
     let config_file =
         sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
             Error::from("Missing config file option")
