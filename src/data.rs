@@ -17,6 +17,12 @@ pub(crate) struct Meta {
     pub(crate) var_ids: Arc<Vec<String>>,
 }
 
+pub(crate) struct GwasCols {
+    id: String,
+    effect: String,
+    se: String
+}
+
 pub(crate) struct GwasData {
     pub(crate) meta: Meta,
     pub(crate) betas: Matrix,
@@ -65,6 +71,15 @@ impl GwasData {
     }
 }
 
+impl Default for GwasCols {
+    fn default() -> Self {
+        let id = "VAR_ID".to_string();
+        let effect = "BETA".to_string();
+        let se = "SE".to_string();
+        GwasCols { id, effect, se }
+    }
+}
+
 impl Display for BetaSe {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "beta={}, se={}", self.beta, self.se)
@@ -73,7 +88,7 @@ impl Display for BetaSe {
 
 impl Display for GwasData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", gwas::cols::VAR_ID)?;
+        write!(f, "{}", gwas::cols_old::VAR_ID)?;
         for trait_name in self.meta.trait_names() {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
@@ -151,7 +166,8 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_tr
              i_trait: usize, action: Action)
              -> Result<(), Error> {
     let gwas_reader =
-        GwasReader::new(BufReader::new(for_file(file, File::open(file))?))?;
+        GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
+                        &GwasCols::default())?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = gwas_record?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {

@@ -1,7 +1,8 @@
 use std::io::{BufRead, Lines};
+use crate::data::GwasCols;
 use crate::error::Error;
 
-pub(crate) mod cols {
+pub(crate) mod cols_old {
     pub(crate) const VAR_ID: &str = "VAR_ID";
     pub(crate) const BETA: &str = "BETA";
     pub(crate) const SE: &str = "SE";
@@ -23,7 +24,8 @@ pub(crate) struct GwasRecord {
 }
 
 impl<R: BufRead> GwasReader<R> {
-    pub(crate) fn new(reader: R) -> Result<GwasReader<R>, Error> {
+    pub(crate) fn new(reader: R, cols: &GwasCols)
+                      -> Result<GwasReader<R>, Error> {
         let mut lines = reader.lines();
         let header =
             lines.next().ok_or_else(|| Error::from("File is empty"))??;
@@ -31,11 +33,12 @@ impl<R: BufRead> GwasReader<R> {
         let mut i_beta_opt: Option<usize> = None;
         let mut i_se_opt: Option<usize> = None;
         for (i, col) in header.split(DELIM).enumerate() {
-            match col {
-                cols::VAR_ID => { i_var_id_opt = Some(i) }
-                cols::BETA => { i_beta_opt = Some(i) }
-                cols::SE => { i_se_opt = Some(i) }
-                _ => {}
+            if col == cols.id {
+                i_var_id_opt = Some(i)
+            } else if col == cols.effect {
+                i_beta_opt = Some(i)
+            } else if col == cols.se {
+                i_se_opt = Some(i)
             }
         }
         let i_var_id =
@@ -59,7 +62,7 @@ impl<R: BufRead> GwasReader<R> {
                 se_opt = Some(part.parse::<f64>()?)
             }
             if var_id_opt.is_some() && beta_opt.is_some() && se_opt.is_some() {
-                break
+                break;
             }
         }
         let var_id =
