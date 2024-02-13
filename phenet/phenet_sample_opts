@@ -1,0 +1,7 @@
+action train
+use_qsub true
+time_limit 48:00:00
+py_script /home/unix/flannick/lap/projects/multipheno/bin/multi_fit.py
+config_file phenet/phenet_sample_config.cfg
+var_id_file /humgen/diabetes2/users/satoshi/03.variant_based/03.input_gwas/07.udler2023_comp_clusters_20sd/aligned_hyperinsulin/varId_aligned_hyperinsulin_nooutlier.txt
+output_file /humgen/diabetes2/users/satoshi/03.variant_based/04.normal_pymc/00.run/output/21.train_aligned_hyperinsulin_from_udler2023_comp_clusters_20sd/trained_aligned.cfg
