@@ -1,9 +1,10 @@
 use std::fs::read_to_string;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::error::Error;
 use crate::train::params::ParamsOverride;
+use crate::data::gwas::GwasCols;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct Config {
     pub(crate) files: FilesConfig,
     pub(crate) gwas: Vec<GwasConfig>,
@@ -11,19 +12,20 @@ pub(crate) struct Config {
     pub(crate) classify: ClassifyConfig,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct GwasConfig {
     pub(crate) name: String,
-    pub(crate) file: String
+    pub(crate) file: String,
+    pub(crate) cols: Option<GwasCols>
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct FilesConfig {
     pub(crate) trace: Option<String>,
     pub(crate) params: String
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct TrainConfig {
     pub(crate) ids_file: String,
     pub(crate) n_steps_burn_in: usize,
@@ -32,7 +34,7 @@ pub(crate) struct TrainConfig {
     pub(crate) n_rounds: usize,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct ClassifyConfig {
     pub(crate) params_override: Option<ParamsOverride>,
     pub(crate) n_steps_burn_in: usize,

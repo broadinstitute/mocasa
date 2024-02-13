@@ -1,11 +1,11 @@
-mod gwas;
+pub(crate) mod gwas;
 
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
-use crate::data::gwas::{GwasReader, GwasRecord};
+use crate::data::gwas::{GwasCols, GwasReader, GwasRecord};
 use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
@@ -15,12 +15,6 @@ use crate::options::config::Config;
 pub(crate) struct Meta {
     pub(crate) trait_names: Arc<Vec<String>>,
     pub(crate) var_ids: Arc<Vec<String>>,
-}
-
-pub(crate) struct GwasCols {
-    id: String,
-    effect: String,
-    se: String
 }
 
 pub(crate) struct GwasData {
@@ -71,15 +65,6 @@ impl GwasData {
     }
 }
 
-impl Default for GwasCols {
-    fn default() -> Self {
-        let id = "VAR_ID".to_string();
-        let effect = "BETA".to_string();
-        let se = "SE".to_string();
-        GwasCols { id, effect, se }
-    }
-}
-
 impl Display for BetaSe {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "beta={}, se={}", self.beta, self.se)
@@ -88,7 +73,7 @@ impl Display for BetaSe {
 
 impl Display for GwasData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", gwas::cols_old::VAR_ID)?;
+        write!(f, "{}", gwas::default_cols::VAR_ID)?;
         for trait_name in self.meta.trait_names() {
             write!(f, "\tbeta_{}\tse_{}", trait_name, trait_name)?;
         }
@@ -167,7 +152,7 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_tr
              -> Result<(), Error> {
     let gwas_reader =
         GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
-                        &GwasCols::default())?;
+                        GwasCols::default())?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = gwas_record?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {

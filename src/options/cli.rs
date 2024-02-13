@@ -12,6 +12,8 @@ mod params {
     pub(crate) const PHENET_FILE_SHORT: char = 'i';
     pub(crate) const PARAMS_FILE: &str = "params-file";
     pub(crate) const PARAMS_FILE_SHORT: char = 'p';
+    pub(crate) const OUT_FILE: &str = "out-file";
+    pub(crate) const OUT_FILE_SHORT: char = 'o';
 }
 
 mod commands {
@@ -28,6 +30,7 @@ pub struct ImportPhenetOptions {
     pub(crate) phenet_file: String,
     pub(crate) params_file: String,
     pub(crate) config_file: String,
+    pub(crate) out_file: String,
 }
 
 pub(crate) enum Choice {
@@ -52,12 +55,19 @@ fn new_import_phenet_command() -> Command {
             .long(params::PARAMS_FILE))
         .arg(Arg::new(params::CONFIG_FILE).short(params::CONFIG_FILE_SHORT)
             .long(params::CONFIG_FILE))
+        .arg(Arg::new(params::OUT_FILE).short(params::OUT_FILE_SHORT)
+            .long(params::OUT_FILE))
+}
+
+fn missing_option_error(name: &str, long: &str, short: char) -> Error {
+    Error::from(format!("Missing {} option ('--{}' or '-{}').", name, long, short))
 }
 
 fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOptions, Error> {
     let config_file =
         sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing config file option")
+            missing_option_error("config file", params::CONFIG_FILE,
+                                 params::CONFIG_FILE_SHORT)
         })?;
     let dry = sub_matches.get_flag(params::DRY);
     Ok(CoreOptions { action, config_file, dry })
@@ -76,7 +86,11 @@ fn get_import_phenet_options(sub_matches: &ArgMatches) -> Result<ImportPhenetOpt
         sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
             Error::from("Missing config file option")
         })?;
-    Ok(ImportPhenetOptions { phenet_file, params_file, config_file })
+    let out_file =
+        sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
+            Error::from("Missing output file option")
+        })?;
+    Ok(ImportPhenetOptions { phenet_file, params_file, config_file, out_file })
 }
 
 fn known_subcommands_message() -> String {

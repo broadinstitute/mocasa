@@ -1,8 +1,11 @@
 use std::collections::BTreeMap;
+use std::fmt::format;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
 use crate::options::cli::ImportPhenetOptions;
+use crate::options::config::{Config, FilesConfig, GwasConfig, TrainConfig};
 
 mod keys {
     pub(crate) const VAR_ID_FILE: &str = "var_id_file";
@@ -12,6 +15,9 @@ mod keys {
     pub(crate) const TRAIT: &str = "trait";
     pub(crate) const ENDO: &str = "endo";
     pub(crate) const FILE: &str = "file";
+    pub(crate) const ID_COL: &str = "id_col";
+    pub(crate) const EFFECT_COL: &str = "effect_col";
+    pub(crate) const SE_COL: &str = "se_col";
 }
 
 struct PhenetOpts {
@@ -23,7 +29,10 @@ struct PhenetOpts {
 struct ConfigBuilder {
     trait_names: Vec<String>,
     endo_name: Option<String>,
-    files: BTreeMap<String, String>
+    files: BTreeMap<String, String>,
+    id_cols: BTreeMap<String, String>,
+    effect_cols: BTreeMap<String, String>,
+    se_cols: BTreeMap<String, String>,
 }
 
 impl ConfigBuilder {
@@ -31,7 +40,10 @@ impl ConfigBuilder {
         let trait_names: Vec<String> = Vec::new();
         let endo_name: Option<String> = None;
         let files: BTreeMap<String, String> = BTreeMap::new();
-        ConfigBuilder { trait_names, endo_name, files }
+        let id_cols: BTreeMap<String, String> = BTreeMap::new();
+        let effect_cols: BTreeMap<String, String> = BTreeMap::new();
+        let se_cols: BTreeMap<String, String> = BTreeMap::new();
+        ConfigBuilder { trait_names, endo_name, files, id_cols, effect_cols, se_cols }
     }
     fn read_phenet_config(&mut self, file: &str) -> Result<(), Error> {
         let file = for_file(file, File::open(file))?;
@@ -74,6 +86,18 @@ impl ConfigBuilder {
                                 self.files.insert(trait_name.to_string(),
                                                   file.to_string());
                             }
+                            (trait_name, keys::ID_COL, id_col) => {
+                                self.id_cols.insert(trait_name.to_string(),
+                                                    id_col.to_string());
+                            }
+                            (trait_name, keys::EFFECT_COL, effect_col) => {
+                                self.effect_cols.insert(trait_name.to_string(),
+                                                        effect_col.to_string());
+                            }
+                            (trait_name, keys::SE_COL, se_col) => {
+                                self.se_cols.insert(trait_name.to_string(),
+                                                    se_col.to_string());
+                            }
                             _ => {
                                 println!("Ignoring line '{}'.", line)
                             }
@@ -92,11 +116,45 @@ impl ConfigBuilder {
         if let Some(endo_name) = &self.endo_name {
             println!("Endo name: {}", endo_name)
         }
-        let file_default =  "<no file>".to_string();
+        let file_default = "<no file>".to_string();
+        let id_col_default = "<no id col>".to_string();
+        let effect_col_default = "<no effect col>".to_string();
+        let se_col_default = "<no se col>".to_string();
         for trait_name in &self.trait_names {
             let file = self.files.get(trait_name).unwrap_or(&file_default);
-            println!("{}\t{}", trait_name, file);
+            let id_col = self.id_cols.get(trait_name).unwrap_or(&id_col_default);
+            let effect_col = self.effect_cols.get(trait_name).unwrap_or(&effect_col_default);
+            let se_col = self.se_cols.get(trait_name).unwrap_or(&se_col_default);
+            println!("{}\t{}\t{}\t{}\t{}", trait_name, id_col, effect_col, se_col, file);
         }
+    }
+    fn build_mocasa_gwas_configs(&self) -> Result<Vec<GwasConfig>, Error> {
+        let mut gwas_configs: Vec<GwasConfig> = Vec::new();
+        let default_cols = GwasCols::default();
+        for name in self.trait_names.iter() {
+            let name = name.clone();
+            let file = self.files.get(&name).cloned().ok_or_else(||
+                Error::from(format!("No file specified for {}", name)))?;
+            let id = self.id_cols.get(&name).cloned().unwrap_or(default_cols.id.clone());
+            let effect =
+                self.effect_cols.get(&name).cloned().unwrap_or(default_cols.effect.clone());
+            let se = self.se_cols.get(&name).cloned().unwrap_or(default_cols.se.clone());
+            let cols = Some(GwasCols { id, effect, se });
+            gwas_configs.push(GwasConfig { name, file, cols })
+        }
+        Ok(gwas_configs)
+    }
+    fn build_mocasa_config(&self, options: ImportPhenetOptions, phenet_opts: PhenetOpts)
+                           -> Result<Config, Error> {
+        let ImportPhenetOptions { params_file, .. } = options;
+        let trace: Option<String> = None;
+        let params = params_file;
+        let files = FilesConfig { trace, params };
+        let gwas = self.build_mocasa_gwas_configs()?;
+        let PhenetOpts { var_id_file, .. } = phenet_opts;
+        let ids_file = var_id_file;
+        let train = TrainConfig { ids_file };
+        Ok(Config { files, gwas, train })
     }
 }
 

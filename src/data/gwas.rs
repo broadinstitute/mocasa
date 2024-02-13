@@ -1,8 +1,15 @@
 use std::io::{BufRead, Lines};
-use crate::data::GwasCols;
+use serde::{Deserialize, Serialize};
 use crate::error::Error;
 
-pub(crate) mod cols_old {
+#[derive(Deserialize, Serialize)]
+pub(crate) struct GwasCols {
+    pub(crate) id: String,
+    pub(crate) effect: String,
+    pub(crate) se: String
+}
+
+pub(crate) mod default_cols {
     pub(crate) const VAR_ID: &str = "VAR_ID";
     pub(crate) const BETA: &str = "BETA";
     pub(crate) const SE: &str = "SE";
@@ -15,6 +22,7 @@ pub(crate) struct GwasReader<R: BufRead> {
     i_var_id: usize,
     i_beta: usize,
     i_se: usize,
+    cols: GwasCols
 }
 
 pub(crate) struct GwasRecord {
@@ -23,8 +31,17 @@ pub(crate) struct GwasRecord {
     pub(crate) se: f64,
 }
 
+impl Default for GwasCols {
+    fn default() -> Self {
+        let id = default_cols::VAR_ID.to_string();
+        let effect =  default_cols::BETA.to_string();
+        let se = default_cols::SE.to_string();
+        GwasCols { id, effect, se }
+    }
+}
+
 impl<R: BufRead> GwasReader<R> {
-    pub(crate) fn new(reader: R, cols: &GwasCols)
+    pub(crate) fn new(reader: R, cols: GwasCols)
                       -> Result<GwasReader<R>, Error> {
         let mut lines = reader.lines();
         let header =
@@ -47,7 +64,7 @@ impl<R: BufRead> GwasReader<R> {
             i_beta_opt.ok_or_else(|| Error::from("No BETA column"))?;
         let i_se =
             i_se_opt.ok_or_else(|| Error::from("No SE column"))?;
-        Ok(GwasReader { lines, i_var_id, i_beta, i_se })
+        Ok(GwasReader { lines, i_var_id, i_beta, i_se, cols })
     }
     pub(crate) fn parse_line(&mut self, line: &str) -> Result<GwasRecord, Error> {
         let mut var_id_opt: Option<String> = None;
@@ -65,10 +82,9 @@ impl<R: BufRead> GwasReader<R> {
                 break;
             }
         }
-        let var_id =
-            var_id_opt.ok_or_else(|| Error::from("Missing value for VAR_ID"))?;
-        let beta = beta_opt.ok_or_else(|| Error::from("Missing value for BETA"))?;
-        let se = se_opt.ok_or_else(|| Error::from("Missing value for SE"))?;
+        let var_id = var_id_opt.ok_or_else(|| missing_value_error(&self.cols.id))?;
+        let beta = beta_opt.ok_or_else(||  missing_value_error(&self.cols.effect))?;
+        let se = se_opt.ok_or_else(||  missing_value_error(&self.cols.se))?;
         Ok(GwasRecord { var_id, beta, se })
     }
 }
@@ -81,4 +97,8 @@ impl<R: BufRead> Iterator for GwasReader<R> {
             line.map_err(Error::from).and_then(|line| self.parse_line(&line)
             ))
     }
+}
+
+fn missing_value_error(col: &str) -> Error {
+    Error::from(format!("Missing value for '{}'.", col))
 }
