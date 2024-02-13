@@ -76,19 +76,23 @@ fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOpti
 fn get_import_phenet_options(sub_matches: &ArgMatches) -> Result<ImportPhenetOptions, Error> {
     let phenet_file =
         sub_matches.get_one::<String>(params::PHENET_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing phenet file option")
+            missing_option_error("phenet opts file", params::PHENET_FILE,
+                                 params::PHENET_FILE_SHORT)
         })?;
     let params_file =
         sub_matches.get_one::<String>(params::PARAMS_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing params file option")
+            missing_option_error("Mocasa parameters file", params::PARAMS_FILE,
+                                 params::PARAMS_FILE_SHORT)
         })?;
     let config_file =
         sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing config file option")
+            missing_option_error("Mocasa config file", params::CONFIG_FILE,
+                                 params::CONFIG_FILE_SHORT)
         })?;
     let out_file =
-        sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
-            Error::from("Missing output file option")
+        sub_matches.get_one::<String>(params::OUT_FILE).cloned().ok_or_else(|| {
+            missing_option_error("Mocasa classification output file", params::OUT_FILE,
+                                 params::OUT_FILE_SHORT)
         })?;
     Ok(ImportPhenetOptions { phenet_file, params_file, config_file, out_file })
 }

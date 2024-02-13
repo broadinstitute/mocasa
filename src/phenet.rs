@@ -1,12 +1,24 @@
 use std::collections::BTreeMap;
-use std::fmt::format;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
 use crate::options::cli::ImportPhenetOptions;
-use crate::options::config::{Config, FilesConfig, GwasConfig, TrainConfig};
+use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, TrainConfig};
+use crate::train::params::ParamsOverride;
 
+mod defaults {
+    pub(crate) mod train {
+        pub(crate) const N_STEPS_BURN_IN: usize = 10000;
+        pub(crate) const N_SAMPLES_PER_ITERATION: usize = 100;
+        pub(crate) const N_ITERATIONS_PER_ROUND: usize = 1000;
+        pub(crate) const N_ROUNDS: usize = 10000;
+    }
+    pub(crate) mod classify {
+        pub(crate) const N_STEPS_BURN_IN: usize = 10000;
+        pub(crate) const N_SAMPLES: usize = 100000;
+    }
+}
 mod keys {
     pub(crate) const VAR_ID_FILE: &str = "var_id_file";
     pub(crate) const CONFIG_FILE: &str = "config_file";
@@ -144,17 +156,30 @@ impl ConfigBuilder {
         }
         Ok(gwas_configs)
     }
-    fn build_mocasa_config(&self, options: ImportPhenetOptions, phenet_opts: PhenetOpts)
+    fn build_mocasa_config(&self, options: &ImportPhenetOptions, phenet_opts: PhenetOpts)
                            -> Result<Config, Error> {
-        let ImportPhenetOptions { params_file, .. } = options;
         let trace: Option<String> = None;
-        let params = params_file;
+        let params = options.params_file.clone();
         let files = FilesConfig { trace, params };
         let gwas = self.build_mocasa_gwas_configs()?;
         let PhenetOpts { var_id_file, .. } = phenet_opts;
         let ids_file = var_id_file;
-        let train = TrainConfig { ids_file };
-        Ok(Config { files, gwas, train })
+        let n_steps_burn_in = defaults::train::N_STEPS_BURN_IN;
+        let n_samples_per_iteration = defaults::train::N_SAMPLES_PER_ITERATION;
+        let n_iterations_per_round = defaults::train::N_ITERATIONS_PER_ROUND;
+        let n_rounds = defaults::train::N_ROUNDS;
+        let train =
+            TrainConfig {
+                ids_file, n_steps_burn_in, n_samples_per_iteration, n_iterations_per_round, n_rounds
+            };
+        let params_override: Option<ParamsOverride> = None;
+        let n_steps_burn_in = defaults::classify::N_STEPS_BURN_IN;
+        let n_samples = defaults::classify::N_SAMPLES;
+        let out_file = options.out_file.clone();
+        let trace_ids: Option<Vec<String>> = None;
+        let classify =
+            ClassifyConfig { params_override, n_steps_burn_in, n_samples, out_file, trace_ids };
+        Ok(Config { files, gwas, train, classify })
     }
 }
 
@@ -168,6 +193,12 @@ pub(crate) fn import_phenet(options: &ImportPhenetOptions) -> Result<(), Error> 
         config_builder.read_phenet_config_optional(output_file)?;
     }
     config_builder.report();
+    let config = config_builder.build_mocasa_config(options, phenet_opts)?;
+    let config_string = toml::to_string(&config)?;
+    let config_file =
+        for_file(&options.config_file, File::create(&options.config_file))?;
+    let mut writer = BufWriter::new(config_file);
+    writer.write_all(config_string.as_bytes())?;
     Ok(())
 }
 

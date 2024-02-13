@@ -7,6 +7,7 @@ mod names {
     pub const MOCASA: &str = "Mocasa error";
     pub const IO: &str = "I/O error";
     pub const TOML_DE: &str = "TOML deserialization error";
+    pub const TOML_SER: &str = "TOML serialization error";
     pub const PARSE_FLOAT: &str = "parse float error";
     pub const SEND: &str = "send error";
     pub const RECEIVE: &str = "receive error";
@@ -19,6 +20,7 @@ pub enum ErrorKind {
     Mocasa,
     IOError,
     TomlDe,
+    TomlSer,
     ParseFloat,
     Send,
     Receive,
@@ -55,6 +57,13 @@ impl From<toml::de::Error> for Error {
     fn from(toml_de_error: toml::de::Error) -> Self {
         let message = toml_de_error.to_string();
         Error::new(ErrorKind::TomlDe, message)
+    }
+}
+
+impl From<toml::ser::Error> for Error {
+    fn from(toml_ser_error: toml::ser::Error) -> Self {
+        let message = toml_ser_error.to_string();
+        Error::new(ErrorKind::TomlSer, message)
     }
 }
 
@@ -106,6 +115,7 @@ impl ErrorKind {
             ErrorKind::Mocasa => { names::MOCASA }
             ErrorKind::IOError => { names::IO }
             ErrorKind::TomlDe => { names::TOML_DE }
+            ErrorKind::TomlSer => { names::TOML_SER }
             ErrorKind::ParseFloat => { names::PARSE_FLOAT }
             ErrorKind::Send => { names::SEND }
             ErrorKind::Receive => { names::RECEIVE }
