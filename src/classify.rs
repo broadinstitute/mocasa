@@ -45,7 +45,8 @@ struct Observer {
 impl Observer {
     fn new(var_ids: &Arc<Vec<String>>, file_name: &str) -> Result<Observer, Error> {
         let var_ids = var_ids.clone();
-        let writer = BufWriter::new(File::create(file_name)?);
+        let writer =
+            BufWriter::new(for_file(file_name, File::create(file_name))?);
         Ok(Observer { var_ids, writer })
     }
 }
@@ -152,7 +153,7 @@ fn read_params(file: &str) -> Result<Params, Error> {
 
 fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], sigs_sampled: &[f64], mus_calculated: &[f64])
                      -> Result<(), Error> {
-    let mut writer = BufWriter::new(File::create(file)?);
+    let mut writer = BufWriter::new(for_file(file, File::create(file))?);
     writeln!(writer, "id\tmu_samp\tsig_samp\tmu_calc")?;
     for (((id, &mu_sampled), &sig_sampled), &mu_calculated)
     in meta.var_ids.iter().zip(mus_sampled.iter()).zip(sigs_sampled.iter()).zip(mus_calculated.iter()) {

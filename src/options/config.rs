@@ -1,6 +1,6 @@
 use std::fs::read_to_string;
 use serde::{Deserialize, Serialize};
-use crate::error::Error;
+use crate::error::{Error, for_file};
 use crate::train::params::ParamsOverride;
 use crate::data::gwas::GwasCols;
 
@@ -44,7 +44,7 @@ pub(crate) struct ClassifyConfig {
 }
 
 pub(crate) fn load_config(file: &str) -> Result<Config, Error> {
-    let string = read_to_string(file)?;
+    let string = for_file(file, read_to_string(file))?;
     let config: Config = toml::from_str(&string)?;
     Ok(config)
 }
