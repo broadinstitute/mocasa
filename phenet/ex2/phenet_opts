@@ -1,0 +1,10 @@
+# Classify with aligned GWAS
+action classify
+use_qsub true
+time_limit 4:00:00
+py_script /humgen/diabetes2/users/oliverr/git/phenet/phenet/multi_fit_new.py 
+config_file phenet/ex2/phenet_config1.cfg
+config_file phenet/ex2/phenet_config2.cfg
+num_chunks 50000
+output_file_prefix /humgen/diabetes2/users/satoshi/03.variant_based/04.normal_pymc/00.run/output/19.classify_aligned_lipo_udler2023_pure_nooutlier_full/classified
+theano_compiledirs_prefix /humgen/diabetes2/users/satoshi/theano/compiledirs/dir

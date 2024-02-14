@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::sync::Arc;
 use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
 use crate::options::cli::ImportPhenetOptions;
 use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, TrainConfig};
-use crate::train::params::ParamsOverride;
+use crate::train::params::{Params, ParamsOverride};
 
 mod defaults {
     pub(crate) mod train {
@@ -14,11 +15,13 @@ mod defaults {
         pub(crate) const N_ITERATIONS_PER_ROUND: usize = 1000;
         pub(crate) const N_ROUNDS: usize = 10000;
     }
+
     pub(crate) mod classify {
         pub(crate) const N_STEPS_BURN_IN: usize = 10000;
         pub(crate) const N_SAMPLES: usize = 100000;
     }
 }
+
 mod keys {
     pub(crate) const VAR_ID_FILE: &str = "var_id_file";
     pub(crate) const CONFIG_FILE: &str = "config_file";
@@ -30,6 +33,9 @@ mod keys {
     pub(crate) const ID_COL: &str = "id_col";
     pub(crate) const EFFECT_COL: &str = "effect_col";
     pub(crate) const SE_COL: &str = "se_col";
+    pub(crate) const BETA: &str = "beta";
+    pub(crate) const VAR: &str = "var";
+    pub(crate) const MEAN: &str = "mean";
 }
 
 struct PhenetOpts {
@@ -45,6 +51,9 @@ struct ConfigBuilder {
     id_cols: BTreeMap<String, String>,
     effect_cols: BTreeMap<String, String>,
     se_cols: BTreeMap<String, String>,
+    betas: BTreeMap<String, f64>,
+    vars: BTreeMap<String, f64>,
+    means: BTreeMap<String, f64>,
 }
 
 impl ConfigBuilder {
@@ -55,7 +64,20 @@ impl ConfigBuilder {
         let id_cols: BTreeMap<String, String> = BTreeMap::new();
         let effect_cols: BTreeMap<String, String> = BTreeMap::new();
         let se_cols: BTreeMap<String, String> = BTreeMap::new();
-        ConfigBuilder { trait_names, endo_name, files, id_cols, effect_cols, se_cols }
+        let betas: BTreeMap<String, f64> = BTreeMap::new();
+        let vars: BTreeMap<String, f64> = BTreeMap::new();
+        let means: BTreeMap<String, f64> = BTreeMap::new();
+        ConfigBuilder {
+            trait_names,
+            endo_name,
+            files,
+            id_cols,
+            effect_cols,
+            se_cols,
+            betas,
+            vars,
+            means,
+        }
     }
     fn read_phenet_config(&mut self, file: &str) -> Result<(), Error> {
         let file = for_file(file, File::open(file))?;
@@ -109,6 +131,18 @@ impl ConfigBuilder {
                             (trait_name, keys::SE_COL, se_col) => {
                                 self.se_cols.insert(trait_name.to_string(),
                                                     se_col.to_string());
+                            }
+                            (trait_name, keys::BETA, beta) => {
+                                self.betas.insert(trait_name.to_string(),
+                                                  beta.parse::<f64>()?);
+                            }
+                            (trait_name, keys::VAR, var) => {
+                                self.vars.insert(trait_name.to_string(),
+                                                 var.parse::<f64>()?);
+                            }
+                            (trait_name, keys::MEAN, mean) => {
+                                self.means.insert(trait_name.to_string(),
+                                                  mean.parse::<f64>()?);
                             }
                             _ => {
                                 println!("Ignoring line '{}'.", line)
@@ -170,7 +204,11 @@ impl ConfigBuilder {
         let n_rounds = defaults::train::N_ROUNDS;
         let train =
             TrainConfig {
-                ids_file, n_steps_burn_in, n_samples_per_iteration, n_iterations_per_round, n_rounds
+                ids_file,
+                n_steps_burn_in,
+                n_samples_per_iteration,
+                n_iterations_per_round,
+                n_rounds,
             };
         let params_override: Option<ParamsOverride> = None;
         let n_steps_burn_in = defaults::classify::N_STEPS_BURN_IN;
@@ -180,6 +218,24 @@ impl ConfigBuilder {
         let classify =
             ClassifyConfig { params_override, n_steps_burn_in, n_samples, out_file, trace_ids };
         Ok(Config { files, gwas, train, classify })
+    }
+
+    fn got_some_params(&self) -> bool {
+        !self.betas.is_empty() || !self.vars.is_empty() || !self.means.is_empty()
+    }
+    fn build_params(&self) -> Result<Params, Error> {
+        let trait_names = Arc::new(self.trait_names.clone());
+        let mu: f64 = todo!();
+        let tau: f64 = todo!();
+        let mut betas: Vec<f64> = Vec::with_capacity(trait_names.len());
+        let mut sigmas: Vec<f64> = Vec::with_capacity(trait_names.len());
+        for trait_name in trait_names.iter() {
+            let beta: f64 = todo!();
+            let sigma: f64 = todo!();
+            betas.push(beta);
+            sigmas.push(sigma);
+        }
+        Ok(Params { trait_names, mu, tau, betas, sigmas })
     }
 }
 
@@ -199,6 +255,22 @@ pub(crate) fn import_phenet(options: &ImportPhenetOptions) -> Result<(), Error> 
         for_file(&options.config_file, File::create(&options.config_file))?;
     let mut writer = BufWriter::new(config_file);
     writer.write_all(config_string.as_bytes())?;
+    if config_builder.got_some_params() {
+        match config_builder.build_params() {
+            Ok(params) => {
+                let params_string = serde_json::to_string(&params)?;
+                let params_file =
+                    for_file(&options.params_file, File::create(&options.params_file))?;
+                let mut params_writer = BufWriter::new(params_file);
+                params_writer.write_all(params_string.as_bytes())?;
+            }
+            Err(error) => {
+                println!("Warning: no parameters written: {}", error)
+            }
+        }
+    } else {
+        println!("No parameter file written, because no params in phenet files given.")
+    }
     Ok(())
 }
 
@@ -234,7 +306,14 @@ fn read_opts_file(opts_file: &str) -> Result<PhenetOpts, Error> {
         }
     }
     let var_id_file =
-        var_id_file.ok_or_else(|| missing_option_error(keys::VAR_ID_FILE))?;
+        match var_id_file {
+            None => {
+                println!("Warning: no variant id file ({}) specified.", keys::VAR_ID_FILE);
+                "".to_string()
+            }
+            Some(var_id_file) => { var_id_file }
+        };
+    // var_id_file.ok_or_else(|| missing_option_error(keys::VAR_ID_FILE))?;
     if config_files.is_empty() {
         Err(missing_option_error(keys::CONFIG_FILE))?;
     }
