@@ -224,18 +224,28 @@ impl ConfigBuilder {
         !self.betas.is_empty() || !self.vars.is_empty() || !self.means.is_empty()
     }
     fn build_params(&self) -> Result<Params, Error> {
+        let endo =
+            self.endo_name.as_ref().ok_or_else(||
+                Error::from("No name for endo phenotype specified."))?;
         let trait_names = Arc::new(self.trait_names.clone());
-        let mu: f64 = todo!();
-        let tau: f64 = todo!();
+        let mu: f64 = num_or_error(&self.means, endo, keys::MEAN)?;
+        let tau: f64 = num_or_error(&self.vars, endo, keys::VAR)?.sqrt();
         let mut betas: Vec<f64> = Vec::with_capacity(trait_names.len());
         let mut sigmas: Vec<f64> = Vec::with_capacity(trait_names.len());
         for trait_name in trait_names.iter() {
-            let beta: f64 = todo!();
-            let sigma: f64 = todo!();
+            let beta: f64 = num_or_error(&self.betas, trait_name, keys::BETA)?;
+            let sigma: f64 = num_or_error(&self.vars, trait_name, keys::VAR)?.sqrt();
             betas.push(beta);
             sigmas.push(sigma);
         }
         Ok(Params { trait_names, mu, tau, betas, sigmas })
+    }
+}
+
+fn num_or_error(nums: &BTreeMap<String, f64>, name: &str, kind: &str) -> Result<f64, Error> {
+    match nums.get(name) {
+        None => { Err(Error::from(format!("Missing value for {} of {}.", kind, name))) }
+        Some(&num) => { Ok(num) }
     }
 }
 

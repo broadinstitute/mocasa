@@ -1,5 +1,5 @@
 [files]
-params = "phenet/ex2/mocasa_params.json"
+params = "phenet/ex2/mocasa_params"
 
 [[gwas]]
 name = "fast_ins_adj_bmi"
