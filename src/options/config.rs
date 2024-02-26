@@ -32,6 +32,7 @@ pub(crate) struct TrainConfig {
     pub(crate) n_samples_per_iteration: usize,
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,
+    pub(crate) normalize_mu_to_one: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

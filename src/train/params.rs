@@ -84,6 +84,14 @@ impl Params {
         let tau = overwrite.tau.unwrap_or(tau);
         Params { trait_names, mu, tau, betas, sigmas }
      }
+    pub(crate) fn normalized_with_mu_one(&self) -> Params {
+        let trait_names = self.trait_names.clone();
+        let mu: f64 = 1.0;
+        let tau = self.tau / self.mu;
+        let betas: Vec<f64> = self.betas.iter().map( |beta| beta * self.mu).collect();
+        let sigmas = self.sigmas.clone();
+        Params { trait_names, mu, tau, betas, sigmas }
+    }
 }
 
 impl Index<ParamIndex> for Params {

@@ -148,6 +148,9 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
             break;
         }
     };
+    if config.train.normalize_mu_to_one {
+        params = params.normalized_with_mu_one()
+    }
     write_params_to_file(&params, config.files.params.as_str())?;
     Ok(())
 }
