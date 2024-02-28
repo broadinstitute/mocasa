@@ -102,7 +102,8 @@ impl VarStats {
             sum_for_mu_mu += mean_e2_j;
         }
         let mu = sum_for_mu / n_data_points_f;
-        let sig = (sum_for_mu_mu / n_data_points_f).sqrt();
+        let mu_mu = sum_for_mu_mu / n_data_points_f;
+        let sig = (mu_mu - mu*mu).sqrt();
         MuSig { mu, sig }
     }
 }
