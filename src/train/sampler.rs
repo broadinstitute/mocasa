@@ -1,7 +1,7 @@
 use rand::Rng;
 use crate::data::{GwasData, Meta};
 use crate::train::gibbs::GibbsSampler;
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::train::var_stats::VarStats;
 use crate::train::vars::{VarIndex, Vars};
 

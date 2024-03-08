@@ -6,7 +6,7 @@ use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
 use crate::options::cli::ImportPhenetOptions;
 use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, TrainConfig};
-use crate::train::params::{Params, ParamsOverride};
+use crate::params::{Params, ParamsOverride};
 
 mod defaults {
     pub(crate) mod train {

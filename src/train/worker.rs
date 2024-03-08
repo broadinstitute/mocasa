@@ -5,7 +5,7 @@ use rand::thread_rng;
 use crate::data::GwasData;
 use crate::options::config::TrainConfig;
 use crate::train::{MessageToCentral, MessageToWorker};
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::train::sampler::Sampler;
 use crate::train::vars::Vars;
 

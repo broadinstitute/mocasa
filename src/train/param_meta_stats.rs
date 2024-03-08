@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::error::Error;
 use crate::math::stats::Stats;
 use crate::math::trident::TridentStats;
-use crate::train::params::{ParamIndex, Params};
+use crate::params::{ParamIndex, Params};
 
 pub(crate) struct ParamMetaStats {
     trait_names: Arc<Vec<String>>,

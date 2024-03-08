@@ -11,7 +11,7 @@ use crate::data::{GwasData, load_data, Meta};
 use crate::error::{Error, for_file};
 use crate::options::action::Action;
 use crate::options::config::{ClassifyConfig, Config};
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
 use crate::classify::worker::classify_worker;

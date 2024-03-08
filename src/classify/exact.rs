@@ -1,4 +1,4 @@
-use crate::train::params::Params;
+use crate::params::Params;
 
 pub(crate) fn calculate_mu(params: &Params, betas: &[f64], ses: &[f64]) -> f64 {
     let tau2 = params.tau.powi(2);

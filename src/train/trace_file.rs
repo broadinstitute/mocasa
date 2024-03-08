@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 use crate::error::Error;
-use crate::train::params::{ParamIndex, Params};
+use crate::params::{ParamIndex, Params};
 
 pub(crate) struct ParamTraceFileWriter {
     path: PathBuf,

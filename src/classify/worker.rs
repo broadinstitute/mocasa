@@ -8,7 +8,7 @@ use crate::classify::{MessageToCentral, MessageToWorker};
 use crate::data::GwasData;
 use crate::options::config::ClassifyConfig;
 use crate::train::vars::Vars;
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::train::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
 use crate::train::var_stats::MuSig;

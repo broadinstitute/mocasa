@@ -1,6 +1,6 @@
 use rand::Rng;
 use rand_distr::Normal;
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::train::vars::Vars;
 use rand_distr::Distribution;
 use crate::data::GwasData;

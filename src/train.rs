@@ -1,5 +1,4 @@
 pub(crate) mod sampler;
-pub(crate) mod params;
 pub(crate) mod vars;
 mod worker;
 pub(crate) mod param_meta_stats;
@@ -22,7 +21,7 @@ use crate::options::config::{Config, TrainConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
-use crate::train::params::Params;
+use crate::params::Params;
 use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_worker;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};

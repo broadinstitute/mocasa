@@ -1,7 +1,7 @@
 use crate::data::GwasData;
 use crate::error::Error;
 use crate::math::stats::Stats;
-use crate::train::params::Params;
+use crate::params::Params;
 
 pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> {
     let meta = &data.meta;

@@ -1,7 +1,7 @@
 use std::iter;
 use crate::data::{GwasData, Meta};
 use crate::math::matrix::Matrix;
-use crate::train::params::Params;
+use crate::params::Params;
 
 pub(crate) struct Vars {
     pub(crate) meta: Meta,

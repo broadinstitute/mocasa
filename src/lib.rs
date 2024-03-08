@@ -13,6 +13,7 @@ mod math;
 mod util;
 mod report;
 mod phenet;
+mod params;
 
 pub fn run() -> Result<(), Error> {
     match get_choice()? {
@@ -25,5 +26,6 @@ pub fn run() -> Result<(), Error> {
             }
         }
         Choice::ImportPhenet(options) => { phenet::import_phenet(&options) }
+        Choice::ScaleSigmas(options) => {}
     }
 }

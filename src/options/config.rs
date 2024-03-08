@@ -1,7 +1,7 @@
 use std::fs::read_to_string;
 use serde::{Deserialize, Serialize};
 use crate::error::{Error, for_file};
-use crate::train::params::ParamsOverride;
+use crate::params::ParamsOverride;
 use crate::data::gwas::GwasCols;
 
 #[derive(Deserialize, Serialize)]
