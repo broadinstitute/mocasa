@@ -73,7 +73,8 @@ fn new_import_phenet_command() -> Command {
 fn new_scale_sigmas_command() -> Command {
     Command::new(commands::SCALE_SIGMAS)
         .arg(new_arg(params::IN_FILE, params::IN_FILE_SHORT))
-        .arg(new_arg(params::SCALE, params::SCALE_SHORT))
+        .arg(new_arg(params::SCALE, params::SCALE_SHORT)
+            .value_parser(clap::value_parser!(f64)))
         .arg(new_arg(params::OUT_FILE, params::OUT_FILE_SHORT))
 }
 
