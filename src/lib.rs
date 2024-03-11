@@ -14,6 +14,7 @@ mod util;
 mod report;
 mod phenet;
 mod params;
+mod sample;
 
 pub fn run() -> Result<(), Error> {
     match get_choice()? {

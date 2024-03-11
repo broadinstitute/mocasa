@@ -1,9 +1,9 @@
 use rand::Rng;
 use crate::data::{GwasData, Meta};
-use crate::train::gibbs::GibbsSampler;
+use crate::sample::gibbs::GibbsSampler;
 use crate::params::Params;
-use crate::train::var_stats::VarStats;
-use crate::train::vars::{VarIndex, Vars};
+use crate::sample::var_stats::VarStats;
+use crate::sample::vars::{VarIndex, Vars};
 
 pub(crate) struct Sampler<R: Rng> {
     gibbs: GibbsSampler<R>,
@@ -27,7 +27,7 @@ impl<R: Rng> Sampler<R> {
         }
     }
     pub(crate) fn sample_one(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
-    e_tracer: &mut Option<Box<dyn ETracer>>) {
+                             e_tracer: &mut Option<Box<dyn ETracer>>) {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point } => {

@@ -1,11 +1,6 @@
-pub(crate) mod sampler;
-pub(crate) mod vars;
 mod worker;
 pub(crate) mod param_meta_stats;
 mod initial_params;
-pub(crate) mod var_stats;
-mod gibbs;
-pub(crate) mod trace_file;
 
 use std::cmp;
 use std::path::PathBuf;
@@ -20,7 +15,7 @@ use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
 use crate::params::{Params, write_params_to_file};
-use crate::train::trace_file::ParamTraceFileWriter;
+use crate::sample::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_worker;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
 

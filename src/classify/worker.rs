@@ -7,11 +7,11 @@ use rand::thread_rng;
 use crate::classify::{MessageToCentral, MessageToWorker};
 use crate::data::GwasData;
 use crate::options::config::ClassifyConfig;
-use crate::train::vars::Vars;
+use crate::sample::vars::Vars;
 use crate::params::Params;
-use crate::train::sampler::{ETracer, Sampler};
+use crate::sample::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
-use crate::train::var_stats::MuSig;
+use crate::sample::var_stats::MuSig;
 
 struct ClassifyETracer<W: Write> {
     writer: W,

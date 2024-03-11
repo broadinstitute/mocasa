@@ -1,7 +1,7 @@
 use crate::data::Meta;
 use crate::math::matrix::Matrix;
 use crate::params::Params;
-use crate::train::vars::Vars;
+use crate::sample::vars::Vars;
 
 pub(crate) struct VarStats {
     meta: Meta,

@@ -6,8 +6,8 @@ use crate::data::GwasData;
 use crate::options::config::TrainConfig;
 use crate::train::{MessageToCentral, MessageToWorker};
 use crate::params::Params;
-use crate::train::sampler::Sampler;
-use crate::train::vars::Vars;
+use crate::sample::sampler::Sampler;
+use crate::sample::vars::Vars;
 
 pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
                            sender: Sender<MessageToCentral>, receiver: Receiver<MessageToWorker>,

@@ -1,7 +1,7 @@
 use rand::Rng;
 use rand_distr::Normal;
 use crate::params::Params;
-use crate::train::vars::Vars;
+use crate::sample::vars::Vars;
 use rand_distr::Distribution;
 use crate::data::GwasData;
 
