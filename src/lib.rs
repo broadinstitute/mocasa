@@ -26,6 +26,6 @@ pub fn run() -> Result<(), Error> {
             }
         }
         Choice::ImportPhenet(options) => { phenet::import_phenet(&options) }
-        Choice::ScaleSigmas(options) => {}
+        Choice::ScaleSigmas(options) => { params::transform::scale_sigmas(&options)}
     }
 }

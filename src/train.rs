@@ -8,20 +8,18 @@ mod gibbs;
 pub(crate) mod trace_file;
 
 use std::cmp;
-use std::fs::File;
-use std::io::{Write, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::available_parallelism;
 use crate::data::{GwasData, load_data};
-use crate::error::{Error, for_file};
+use crate::error::Error;
 use crate::options::action::Action;
 use crate::options::config::{Config, TrainConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
-use crate::params::Params;
+use crate::params::{Params, write_params_to_file};
 use crate::train::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_worker;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
@@ -161,12 +159,4 @@ fn create_param_estimates(threads: &Threads<MessageToCentral, MessageToWorker>, 
     let params: Vec<Params> =
         responses.into_iter().map(|response| response.params).collect();
     Ok(params)
-}
-
-fn write_params_to_file(params: &Params, output_file: &str) -> Result<(), Error> {
-    let mut writer =
-        BufWriter::new(for_file(output_file, File::create(output_file))?);
-    let json = serde_json::to_string(params)?;
-    writeln!(writer, "{}", json)?;
-    Ok(())
 }

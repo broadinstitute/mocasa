@@ -1,8 +1,13 @@
+pub(crate) mod transform;
+
 use std::fmt::{Display, Formatter};
+use std::fs::{File, read_to_string};
+use std::io::BufWriter;
 use std::ops::Index;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use crate::error::Error;
+use crate::error::{Error, for_file};
+use std::io::Write;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Params {
@@ -128,4 +133,18 @@ impl Display for ParamIndex {
             ParamIndex::Sigma(i_trait) => { write!(f, "sigma_{}", i_trait) }
         }
     }
+}
+
+pub(crate) fn read_params_from_file(file: &str) -> Result<Params, Error> {
+    let params_string = for_file(file, read_to_string(file))?;
+    let params = serde_json::from_str(&params_string)?;
+    Ok(params)
+}
+
+pub(crate) fn write_params_to_file(params: &Params, output_file: &str) -> Result<(), Error> {
+    let mut writer =
+        BufWriter::new(for_file(output_file, File::create(output_file))?);
+    let json = serde_json::to_string(params)?;
+    writeln!(writer, "{}", json)?;
+    Ok(())
 }

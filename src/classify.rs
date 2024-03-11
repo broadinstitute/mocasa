@@ -2,7 +2,7 @@ mod worker;
 mod exact;
 
 use std::cmp;
-use std::fs::{File, read_to_string};
+use std::fs::File;
 use std::io::BufWriter;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -11,7 +11,7 @@ use crate::data::{GwasData, load_data, Meta};
 use crate::error::{Error, for_file};
 use crate::options::action::Action;
 use crate::options::config::{ClassifyConfig, Config};
-use crate::params::Params;
+use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
 use crate::classify::worker::classify_worker;
@@ -102,7 +102,7 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLaunche
 }
 
 pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error> {
-    let params = read_params(&config.files.params)?;
+    let params = read_params_from_file(&config.files.params)?;
     println!("Read from file mu = {}, tau = {}", params.mu, params.tau);
 
     let params =
@@ -143,12 +143,6 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
         in_messages.iter().map(|in_message| in_message.mu_calculated).collect();
     write_mus_to_file(&config.out_file, meta, &mus_sampled, &sigs_sampled, &mus_calculated)?;
     Ok(())
-}
-
-fn read_params(file: &str) -> Result<Params, Error> {
-    let params_string = for_file(file, read_to_string(file))?;
-    let params = serde_json::from_str(&params_string)?;
-    Ok(params)
 }
 
 fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], sigs_sampled: &[f64], mus_calculated: &[f64])
