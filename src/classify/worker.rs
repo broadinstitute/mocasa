@@ -4,14 +4,13 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
-use crate::classify::{MessageToCentral, MessageToWorker};
+use crate::classify::{Classification, MessageToCentral, MessageToWorker};
 use crate::data::GwasData;
 use crate::options::config::ClassifyConfig;
 use crate::sample::vars::Vars;
 use crate::params::Params;
 use crate::sample::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
-use crate::sample::var_stats::MuSig;
 
 struct ClassifyETracer<W: Write> {
     writer: W,
@@ -67,10 +66,11 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in, &mut
                     e_tracer);
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
-                let MuSig { mu: mu_sampled, sig: sig_sampled }  = sampler.var_stats().calculate_mu_sig();
+                let sampled = sampler.var_stats().calculate_classification();
                 let mu_calculated =
                     calculate_mu(&params, &data.betas[0], &data.ses[0]);
-                sender.send(MessageToCentral { i_thread, mu_sampled, sig_sampled, mu_calculated }).unwrap();
+                let classification = Classification { sampled, e_mean_calculated: mu_calculated };
+                sender.send(MessageToCentral { i_thread, classification }).unwrap();
             }
             MessageToWorker::Shutdown => {
                 break;

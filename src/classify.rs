@@ -15,6 +15,7 @@ use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
 use crate::classify::worker::classify_worker;
+use crate::sample::var_stats::SampledClassification;
 
 #[derive(Clone)]
 pub(crate) enum MessageToWorker {
@@ -26,11 +27,14 @@ impl OutMessage for MessageToWorker {
     const SHUTDOWN: Self = MessageToWorker::Shutdown;
 }
 
+struct Classification {
+    sampled: SampledClassification,
+    e_mean_calculated: f64,
+}
+
 pub(crate) struct MessageToCentral {
     i_thread: usize,
-    mu_sampled: f64,
-    sig_sampled: f64,
-    mu_calculated: f64,
+    classification: Classification,
 }
 
 impl InMessage for MessageToCentral {
@@ -38,23 +42,24 @@ impl InMessage for MessageToCentral {
 }
 
 struct Observer {
+    meta: Meta,
     var_ids: Arc<Vec<String>>,
     writer: BufWriter<File>,
 }
 
 impl Observer {
-    fn new(var_ids: &Arc<Vec<String>>, file_name: &str) -> Result<Observer, Error> {
+    fn new(var_ids: &Arc<Vec<String>>, file_name: &str, meta: Meta) -> Result<Observer, Error> {
         let var_ids = var_ids.clone();
         let writer =
             BufWriter::new(for_file(file_name, File::create(file_name))?);
-        Ok(Observer { var_ids, writer })
+        Ok(Observer { meta, var_ids, writer })
     }
 }
 
 impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     fn going_to_start_queue(&mut self) {
         println!("Starting to classify data points.");
-        if let Err(error) = writeln!(self.writer, "id\tmu_samp\tsig_samp\tmu_calc") {
+        if let Err(error) = write_header(&mut self.writer, &self.meta) {
             println!("Cannot write temp file: {}", error)
         }
     }
@@ -66,12 +71,9 @@ impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
     }
 
     fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, _: usize) {
-        let mu_sampled = in_message.mu_sampled;
-        let sig_sampled = in_message.sig_sampled;
-        let mu_calculated = in_message.mu_calculated;
         let var_id = &self.var_ids[i_task];
         let io_result =
-            writeln!(self.writer, "{}\t{}\t{}\t{}", var_id, mu_sampled, sig_sampled, mu_calculated);
+            write_entry(&mut self.writer, var_id, &in_message.classification);
         if let Err(error) = io_result {
             println!("Cannot write temp file: {}", error)
         }
@@ -133,25 +135,38 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Resul
     let out_messages =
         (0..meta.n_data_points()).map(MessageToWorker::DataPoint);
     let temp_out_file = format!("{}_tmp", config.out_file);
-    let mut observer = Observer::new(&meta.var_ids, &temp_out_file)?;
+    let mut observer =
+        Observer::new(&meta.var_ids, &temp_out_file, meta.clone())?;
     let in_messages = threads.task_queue(out_messages, &mut observer)?;
-    let mus_sampled: Vec<f64> =
-        in_messages.iter().map(|in_message| in_message.mu_sampled).collect();
-    let sigs_sampled: Vec<f64> =
-        in_messages.iter().map(|in_message| in_message.sig_sampled).collect();
-    let mus_calculated: Vec<f64> =
-        in_messages.iter().map(|in_message| in_message.mu_calculated).collect();
-    write_mus_to_file(&config.out_file, meta, &mus_sampled, &sigs_sampled, &mus_calculated)?;
+    let classifications: Vec<Classification> =
+        in_messages.into_iter().map(|in_message| in_message.classification).collect();
+    write_out_file(&config.out_file, meta, &classifications)?;
     Ok(())
 }
 
-fn write_mus_to_file(file: &str, meta: &Meta, mus_sampled: &[f64], sigs_sampled: &[f64], mus_calculated: &[f64])
-                     -> Result<(), Error> {
+fn write_out_file(file: &str, meta: &Meta, classifications: &[Classification])
+                  -> Result<(), Error> {
     let mut writer = BufWriter::new(for_file(file, File::create(file))?);
-    writeln!(writer, "id\tmu_samp\tsig_samp\tmu_calc")?;
-    for (((id, &mu_sampled), &sig_sampled), &mu_calculated)
-    in meta.var_ids.iter().zip(mus_sampled.iter()).zip(sigs_sampled.iter()).zip(mus_calculated.iter()) {
-        writeln!(writer, "{}\t{}\t{}\t{}", id, mu_sampled, sig_sampled, mu_calculated)?;
+    write_header(&mut writer, meta)?;
+    for (id, classification)
+    in meta.var_ids.iter().zip(classifications.iter()) {
+        write_entry(&mut writer, id, classification)?;
     }
+    Ok(())
+}
+
+fn write_header(writer: &mut BufWriter<File>, meta: &Meta) -> Result<(), Error> {
+    let traits_part = meta.trait_names.join("\t");
+    writeln!(writer, "id\te_mean_samp\te_std_samp\te_mean_calc\t{}", traits_part)?;
+    Ok(())
+}
+
+fn write_entry(writer: &mut BufWriter<File>, id: &str, classification: &Classification)
+               -> Result<(), Error> {
+    let Classification { sampled, e_mean_calculated } = classification;
+    let SampledClassification { e_mean, e_std, t_means } = sampled;
+    let t_means_part =
+        t_means.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("\t");
+    writeln!(writer, "{}\t{}\t{}\t{}\t{}", id, e_mean, e_std, e_mean_calculated, t_means_part)?;
     Ok(())
 }
