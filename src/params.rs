@@ -12,8 +12,8 @@ use std::io::Write;
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Params {
     pub(crate) trait_names: Arc<Vec<String>>,
-    pub(crate) mu: f64,
-    pub(crate) tau: f64,
+    pub(crate) mus: Vec<f64>,
+    pub(crate) taus: Vec<f64>,
     pub(crate) betas: Vec<f64>,
     pub(crate) sigmas: Vec<f64>,
 }

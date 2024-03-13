@@ -27,6 +27,7 @@ pub(crate) struct FilesConfig {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct TrainConfig {
+    pub(crate) n_endos: usize,
     pub(crate) ids_file: String,
     pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples_per_iteration: usize,

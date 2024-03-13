@@ -68,7 +68,8 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
                 let sampled = sampler.var_stats().calculate_classification();
                 let mu_calculated =
-                    calculate_mu(&params, &data.betas[0], &data.ses[0]);
+                    calculate_mu(&params, &data.betas[0], &data.ses[0])
+                        .unwrap_or(f64::NAN);
                 let classification = Classification { sampled, e_mean_calculated: mu_calculated };
                 sender.send(MessageToCentral { i_thread, classification }).unwrap();
             }

@@ -31,7 +31,9 @@ pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> 
     let tau =
         e_stats.variance().ok_or_else(|| { Error::from("Need at least one trait.") })?
             .sqrt();
+    let mus = vec![mu; meta.n_endos];
+    let taus = vec![tau; meta.n_endos];
     let betas: Vec<f64> = means.iter().map(|mean| mean / (mu + tau * mu.signum())).collect();
     let trait_names = meta.trait_names.clone();
-    Ok(Params { trait_names, mu, tau, betas, sigmas })
+    Ok(Params { trait_names, mus, taus, betas, sigmas })
 }

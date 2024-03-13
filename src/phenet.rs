@@ -46,7 +46,7 @@ struct PhenetOpts {
 
 struct ConfigBuilder {
     trait_names: Vec<String>,
-    endo_name: Option<String>,
+    endo_names: Vec<String>,
     files: BTreeMap<String, String>,
     id_cols: BTreeMap<String, String>,
     effect_cols: BTreeMap<String, String>,
@@ -59,7 +59,7 @@ struct ConfigBuilder {
 impl ConfigBuilder {
     fn new() -> ConfigBuilder {
         let trait_names: Vec<String> = Vec::new();
-        let endo_name: Option<String> = None;
+        let endo_names: Vec<String> = Vec::new();
         let files: BTreeMap<String, String> = BTreeMap::new();
         let id_cols: BTreeMap<String, String> = BTreeMap::new();
         let effect_cols: BTreeMap<String, String> = BTreeMap::new();
@@ -69,7 +69,7 @@ impl ConfigBuilder {
         let means: BTreeMap<String, f64> = BTreeMap::new();
         ConfigBuilder {
             trait_names,
-            endo_name,
+            endo_names,
             files,
             id_cols,
             effect_cols,
@@ -114,7 +114,7 @@ impl ConfigBuilder {
                                 }
                             }
                             (endo_name, keys::DECLARE, keys::ENDO) => {
-                                self.endo_name = Some(endo_name.to_string());
+                                self.endo_names.push(endo_name.to_string());
                             }
                             (trait_name, keys::FILE, file) => {
                                 self.files.insert(trait_name.to_string(),
@@ -159,9 +159,7 @@ impl ConfigBuilder {
     }
     fn report(&self) {
         println!("Trait names: {}", self.trait_names.join(", "));
-        if let Some(endo_name) = &self.endo_name {
-            println!("Endo name: {}", endo_name)
-        }
+        println!("Endophenotype names: {}", self.endo_names.join(", "));
         let file_default = "<no file>".to_string();
         let id_col_default = "<no id col>".to_string();
         let effect_col_default = "<no effect col>".to_string();
@@ -197,6 +195,7 @@ impl ConfigBuilder {
         let files = FilesConfig { trace, params };
         let gwas = self.build_mocasa_gwas_configs()?;
         let PhenetOpts { var_id_file, .. } = phenet_opts;
+        let n_endos = self.endo_names.len();
         let ids_file = var_id_file;
         let n_steps_burn_in = defaults::train::N_STEPS_BURN_IN;
         let n_samples_per_iteration = defaults::train::N_SAMPLES_PER_ITERATION;
@@ -205,6 +204,7 @@ impl ConfigBuilder {
         let normalize_mu_to_one = true;
         let train =
             TrainConfig {
+                n_endos,
                 ids_file,
                 n_steps_burn_in,
                 n_samples_per_iteration,
@@ -226,12 +226,15 @@ impl ConfigBuilder {
         !self.betas.is_empty() || !self.vars.is_empty() || !self.means.is_empty()
     }
     fn build_params(&self) -> Result<Params, Error> {
-        let endo =
-            self.endo_name.as_ref().ok_or_else(||
-                Error::from("No name for endo phenotype specified."))?;
         let trait_names = Arc::new(self.trait_names.clone());
-        let mu: f64 = num_or_error(&self.means, endo, keys::MEAN)?;
-        let tau: f64 = num_or_error(&self.vars, endo, keys::VAR)?.sqrt();
+        let mut mus: Vec<f64> = Vec::with_capacity(self.endo_names.len());
+        let mut taus: Vec<f64> = Vec::with_capacity(self.endo_names.len());
+        for endo_name in self.endo_names {
+            let mu: f64 = num_or_error(&self.means, &endo_name, keys::MEAN)?;
+            let tau: f64 = num_or_error(&self.vars, &endo_name, keys::VAR)?.sqrt();
+            mus.push(mu);
+            taus.push(tau);
+        }
         let mut betas: Vec<f64> = Vec::with_capacity(trait_names.len());
         let mut sigmas: Vec<f64> = Vec::with_capacity(trait_names.len());
         for trait_name in trait_names.iter() {
@@ -240,7 +243,7 @@ impl ConfigBuilder {
             betas.push(beta);
             sigmas.push(sigma);
         }
-        Ok(Params { trait_names, mu, tau, betas, sigmas })
+        Ok(Params { trait_names, mus, taus, betas, sigmas })
     }
 }
 

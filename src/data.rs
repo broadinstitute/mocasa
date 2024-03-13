@@ -15,6 +15,7 @@ use crate::options::config::Config;
 pub(crate) struct Meta {
     pub(crate) trait_names: Arc<Vec<String>>,
     pub(crate) var_ids: Arc<Vec<String>>,
+    pub(crate) n_endos: usize
 }
 
 pub(crate) struct GwasData {
@@ -30,13 +31,15 @@ pub(crate) struct BetaSe {
 }
 
 impl Meta {
-    pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>) -> Meta {
-        Meta { trait_names, var_ids }
+    pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>, n_endos: usize)
+        -> Meta {
+        Meta { trait_names, var_ids, n_endos }
     }
     pub(crate) fn var_ids(&self) -> &[String] { &self.var_ids }
     pub(crate) fn trait_names(&self) -> &[String] { &self.trait_names }
     pub(crate) fn n_data_points(&self) -> usize { self.var_ids().len() }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names().len() }
+    pub(crate) fn n_endos(&self) -> usize { self.n_endos }
 }
 
 impl GwasData {
@@ -55,7 +58,8 @@ impl GwasData {
             Arc::new(is_col.iter().map(|&i_col|
                 self.meta.trait_names[i_col].clone())
                 .collect());
-        let meta = Meta { var_ids, trait_names };
+        let n_endos = self.meta.n_endos;
+        let meta = Meta { var_ids, trait_names, n_endos };
         let n_cols = meta.n_traits();
         let betas =
             Matrix::fill(1, n_cols, |_, i_i_col| self.betas[i_row][is_col[i_i_col]]);
@@ -132,7 +136,8 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
             }
         }
     }
-    let meta = Meta::new(trait_names.into(), var_ids.into());
+    let meta =
+        Meta::new(trait_names.into(), var_ids.into(), config.train.n_endos);
     Ok(GwasData { meta, betas, ses })
 }
 
