@@ -1,9 +1,10 @@
 use crate::data::GwasData;
 use crate::error::Error;
+use crate::math::matrix::Matrix;
 use crate::math::stats::Stats;
 use crate::params::Params;
 
-pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> {
+pub(crate) fn estimate_initial_params(data: &GwasData, n_endos: usize) -> Result<Params, Error> {
     let meta = &data.meta;
     let n_data_points = meta.n_data_points();
     let n_traits = meta.n_traits();
@@ -33,7 +34,9 @@ pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> 
             .sqrt();
     let mus = vec![mu; meta.n_endos];
     let taus = vec![tau; meta.n_endos];
-    let betas: Vec<f64> = means.iter().map(|mean| mean / (mu + tau * mu.signum())).collect();
+    let betas: Matrix =
+        Matrix::fill(n_endos, n_traits,
+                     |_, i_trait| means[i_trait] / (mu + tau * mu.signum()));
     let trait_names = meta.trait_names.clone();
     Ok(Params { trait_names, mus, taus, betas, sigmas })
 }

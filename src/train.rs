@@ -80,6 +80,7 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
 
 fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let data = Arc::new(data);
+    let n_endos =  config.train.n_endos;
     let n_traits = data.meta.n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
@@ -91,7 +92,7 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     println!("Launching {} workers and burning in with {} iterations", n_threads,
              config.train.n_steps_burn_in);
-    let mut params = estimate_initial_params(&data)?;
+    let mut params = estimate_initial_params(&data, n_endos)?;
     println!("{}", params);
     let launcher =
         TrainWorkerLauncher::new(data, params.clone(), config.train.clone());
@@ -106,7 +107,7 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
         let params0 = create_param_estimates(&threads, n_samples)?;
         let params1 = create_param_estimates(&threads, n_samples)?;
         let mut param_meta_stats =
-            ParamMetaStats::new(n_threads, params.trait_names.clone(),
+            ParamMetaStats::new(n_threads, n_endos, params.trait_names.clone(),
                                 &params0, &params1);
         let mut reached_precision = false;
         loop {

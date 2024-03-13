@@ -6,6 +6,7 @@ use crate::math::trident::TridentStats;
 use crate::params::{ParamIndex, Params};
 
 pub(crate) struct ParamMetaStats {
+    n_endos: usize,
     trait_names: Arc<Vec<String>>,
     stats: Vec<Vec<TridentStats>>,
 }
@@ -22,8 +23,8 @@ pub(crate) struct Summary {
 }
 
 impl ParamMetaStats {
-    pub(crate) fn new(n_chains_used: usize, trait_names: Arc<Vec<String>>, params0: &[Params],
-                      params1: &[Params])
+    pub(crate) fn new(n_chains_used: usize, n_endos: usize, trait_names: Arc<Vec<String>>,
+                      params0: &[Params], params1: &[Params])
                       -> ParamMetaStats {
         let n_traits = trait_names.len();
         let stats = (0..n_chains_used).map(|i_chain| {
@@ -33,10 +34,11 @@ impl ParamMetaStats {
                 TridentStats::new(param0, param1)
             }).collect::<Vec<TridentStats>>()
         }).collect::<Vec<Vec<TridentStats>>>();
-        ParamMetaStats { trait_names, stats }
+        ParamMetaStats { n_endos, trait_names, stats }
     }
     pub(crate) fn n_traits(&self) -> usize { self.trait_names.len() }
     pub(crate) fn n_chains_used(&self) -> usize { self.stats.len() }
+    pub(crate) fn n_endos(&self) -> usize { self.n_endos }
     pub(crate) fn add(&mut self, params: &[Params]) {
         let n_traits = self.n_traits();
         for (i_chain, param) in params.iter().enumerate() {
@@ -47,6 +49,7 @@ impl ParamMetaStats {
         }
     }
     pub(crate) fn summary(&self) -> Result<Summary, Error> {
+        let n_endos =  self.n_endos();
         let n_traits = self.n_traits();
         let n_chains_used = self.n_chains_used();
         let n_params = ParamIndex::n_params(n_traits);
@@ -76,7 +79,8 @@ impl ParamMetaStats {
             inter_intra_ratios.push(inter_intra_ratio);
             relative_errors.push(relative_error);
         }
-        let params = Params::from_vec(&param_values, self.trait_names.clone())?;
+        let params =
+            Params::from_vec(&param_values, self.trait_names.clone(), n_endos)?;
         let inter_intra_ratios_mean =
             inter_intra_ratios.iter().sum::<f64>() / (n_params as f64);
         let relative_errors_mean =

@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::sync::Arc;
 use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
+use crate::math::matrix::Matrix;
 use crate::options::cli::ImportPhenetOptions;
 use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, TrainConfig};
 use crate::params::{Params, ParamsOverride};
@@ -235,12 +236,16 @@ impl ConfigBuilder {
             mus.push(mu);
             taus.push(tau);
         }
-        let mut betas: Vec<f64> = Vec::with_capacity(trait_names.len());
+        let n_endo = self.endo_names.len();
+        let n_traits = trait_names.len();
+        let mut betas: Matrix = Matrix::fill(n_endo, n_traits, |_, _| 0.0);
         let mut sigmas: Vec<f64> = Vec::with_capacity(trait_names.len());
-        for trait_name in trait_names.iter() {
+        for (i_trait, trait_name) in trait_names.iter().enumerate() {
             let beta: f64 = num_or_error(&self.betas, trait_name, keys::BETA)?;
             let sigma: f64 = num_or_error(&self.vars, trait_name, keys::VAR)?.sqrt();
-            betas.push(beta);
+            for i_endo in 0..n_endo {
+                betas[i_endo][i_trait] = beta;
+            }
             sigmas.push(sigma);
         }
         Ok(Params { trait_names, mus, taus, betas, sigmas })
