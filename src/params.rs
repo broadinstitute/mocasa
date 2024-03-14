@@ -34,25 +34,30 @@ pub(crate) struct ParamsOverride {
 }
 
 impl ParamIndex {
-    pub(crate) fn all(n_traits: usize) -> impl Iterator<Item=ParamIndex> {
-        vec![ParamIndex::Mu, ParamIndex::Tau].into_iter()
-            .chain((0..n_traits).map(ParamIndex::Beta))
+    pub(crate) fn all(n_endos: usize, n_traits: usize) -> impl Iterator<Item=ParamIndex> {
+        (0..n_endos).map(ParamIndex::Mu)
+            .chain((0..n_endos).map(ParamIndex::Tau))
+            .chain((0..n_endos).flat_map(move |i_endo|
+                (0..n_traits).map(move |i_trait|
+                    ParamIndex::Beta(i_endo, i_trait))))
             .chain((0..n_traits).map(ParamIndex::Sigma))
     }
     pub(crate) fn n_params(n_traits: usize) -> usize { 2 * n_traits + 2 }
     pub(crate) fn get_ordinal(&self, n_endos: usize, n_traits: usize) -> usize {
         match self {
-            ParamIndex::Mu(&i_endo) => { i_endo }
-            ParamIndex::Tau(&i_endo) => { n_endos + i_endo }
-            ParamIndex::Beta(&i_endo, &i_trait) => { 2 * n_endos + i_endo * n_traits + i_trait }
-            ParamIndex::Sigma(&i_trait) => { i_trait + n_endos * (2 + n_traits) }
+            ParamIndex::Mu(i_endo) => { *i_endo }
+            ParamIndex::Tau(i_endo) => { n_endos + i_endo }
+            ParamIndex::Beta(i_endo, i_trait) => { 2 * n_endos + i_endo * n_traits + i_trait }
+            ParamIndex::Sigma(i_trait) => { i_trait + n_endos * (2 + n_traits) }
         }
     }
     pub(crate) fn with_trait_name(&self, trait_names: &[String]) -> String {
         match self {
-            ParamIndex::Mu(&i_endo) => { format!("mu_{}", i_endo) }
-            ParamIndex::Tau(&i_endo) => { format!("mu_{}", i_endo) }
-            ParamIndex::Beta(i_trait) => { format!("beta_{}", trait_names[*i_trait]) }
+            ParamIndex::Mu(i_endo) => { format!("mu_{}", i_endo) }
+            ParamIndex::Tau(i_endo) => { format!("mu_{}", i_endo) }
+            ParamIndex::Beta(i_endo, i_trait) => {
+                format!("beta_{}_{}", i_endo, trait_names[*i_trait])
+            }
             ParamIndex::Sigma(i_trait) => { format!("sigma_{}", trait_names[*i_trait]) }
         }
     }
@@ -123,9 +128,9 @@ impl Index<ParamIndex> for Params {
 
     fn index(&self, index: ParamIndex) -> &Self::Output {
         match index {
-            ParamIndex::Mu(&i_endo) => { &self.mu[i_endo] }
-            ParamIndex::Tau(&i_endo) => { &self.tau[i_endo] }
-            ParamIndex::Beta(&i_endo, &i_trait) => { &self.betas[i_endo][i_trait] }
+            ParamIndex::Mu(i_endo) => { &self.mus[i_endo] }
+            ParamIndex::Tau(i_endo) => { &self.taus[i_endo] }
+            ParamIndex::Beta(i_endo, i_trait) => { &self.betas[i_endo][i_trait] }
             ParamIndex::Sigma(i_trait) => { &self.sigmas[i_trait] }
         }
     }
@@ -133,11 +138,21 @@ impl Index<ParamIndex> for Params {
 
 impl Display for Params {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "mu = {}", self.mu)?;
-        for ((name, beta), sigma) in self.trait_names.iter()
-            .zip(self.betas.iter()).zip(self.sigmas.iter()) {
-            writeln!(f, "beta_{} = {}", name, beta)?;
-            writeln!(f, "sigma_{} = {}", name, sigma)?;
+        for (i_endo, mu) in self.mus.iter().enumerate() {
+            writeln!(f, "mu_{} = {}", i_endo, mu)?;
+        }
+        for (i_endo, tau) in self.taus.iter().enumerate() {
+            writeln!(f, "tau_{} = {}", i_endo, tau)?;
+        }
+        for i_endo in 0..self.n_endos() {
+            let row = &self.betas[i_endo];
+            for (beta, trait_name) in row.iter().zip(self.trait_names.iter()) {
+                writeln!(f, "beta_{}_{} = {}", i_endo, trait_name, beta)?;
+            }
+        }
+        for (sigma, trait_name) in
+        self.sigmas.iter().zip(self.trait_names.iter()) {
+            writeln!(f, "sigma_{} = {}", trait_name, sigma)?;
         }
         Ok(())
     }

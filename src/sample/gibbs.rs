@@ -11,8 +11,8 @@ pub(crate) struct GibbsSampler<R: Rng> {
 
 impl<R: Rng> GibbsSampler<R> {
     pub(crate) fn new(rng: R) -> GibbsSampler<R> { GibbsSampler { rng } }
-    pub(crate) fn draw_e(&mut self, vars: &Vars, params: &Params, i_data_point: usize)
-                         -> f64 {
+    pub(crate) fn draw_e(&mut self, vars: &Vars, params: &Params, i_data_point: usize,
+                         i_endo: usize) -> f64 {
         let n_traits = params.trait_names.len();
         let tau = params.tau;
         let inv_var_sum: f64 = 1.0 / tau.powi(2) + (0..n_traits).map(|i_trait| {

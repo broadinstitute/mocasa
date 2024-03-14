@@ -27,12 +27,19 @@ impl Vars {
     }
     pub(crate) fn initial_vars(data: &GwasData, params: &Params) -> Vars {
         let meta = data.meta.clone();
-        let es = vec![params.mu; data.n_data_points()];
-        let element_gen = |i_data_point: usize, i_trait: usize| {
-            es[i_data_point] * params.betas[i_trait]
-        };
+        let n_data_points = data.n_data_points();
+        let n_endos = params.n_endos();
+        let es =
+            Matrix::fill(n_data_points, n_endos,
+                         |i_data_point, i_endo| params.mus[i_endo]);
         let ts =
-            Matrix::fill(data.n_data_points(), data.n_traits(), element_gen);
+            Matrix::fill(data.n_data_points(), data.n_traits(),
+                         |i_data_point: usize, i_trait: usize|
+                             {
+                                 (0..n_endos).map(|i_endo|
+                                     es[i_endo][i_data_point] * params.betas[i_trait][i_endo])
+                                     .sum::<f64>()
+                             });
         Vars { meta, es, ts }
     }
 }

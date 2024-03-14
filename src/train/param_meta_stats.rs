@@ -28,7 +28,7 @@ impl ParamMetaStats {
                       -> ParamMetaStats {
         let n_traits = trait_names.len();
         let stats = (0..n_chains_used).map(|i_chain| {
-            ParamIndex::all(n_traits).map(|index| {
+            ParamIndex::all(n_endos, n_traits).map(|index| {
                 let param0 = params0[i_chain][index];
                 let param1 = params1[i_chain][index];
                 TridentStats::new(param0, param1)
@@ -40,10 +40,11 @@ impl ParamMetaStats {
     pub(crate) fn n_chains_used(&self) -> usize { self.stats.len() }
     pub(crate) fn n_endos(&self) -> usize { self.n_endos }
     pub(crate) fn add(&mut self, params: &[Params]) {
+        let n_endos = self.n_endos();
         let n_traits = self.n_traits();
         for (i_chain, param) in params.iter().enumerate() {
-            for index in ParamIndex::all(n_traits) {
-                let i_param = index.get_ordinal(n_traits);
+            for index in ParamIndex::all(n_endos, n_traits) {
+                let i_param = index.get_ordinal(n_endos, n_traits);
                 self.stats[i_chain][i_param].add(param[index])
             }
         }
@@ -58,8 +59,8 @@ impl ParamMetaStats {
         let mut inter_chain_vars: Vec<f64> = Vec::with_capacity(n_params);
         let mut inter_intra_ratios: Vec<f64> = Vec::with_capacity(n_params);
         let mut relative_errors: Vec<f64> = Vec::with_capacity(n_params);
-        for index in ParamIndex::all(n_traits) {
-            let i_param = index.get_ordinal(n_traits);
+        for index in ParamIndex::all(n_endos, n_traits) {
+            let i_param = index.get_ordinal(n_endos, n_traits);
             let mut inter_mean_stats = Stats::new();
             let mut inter_var_stats = Stats::new();
             for i_chain in 0..n_chains_used {
@@ -108,6 +109,7 @@ fn str18<T: Display>(item: T) -> String {
 
 impl Display for Summary {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let n_endos = self.params.n_endos();
         let n_traits = self.params.n_traits();
         writeln!(f, "Chains used: {}", self.n_chains_used)?;
         writeln!(f, "Relative errors mean: {}", self.relative_errors_mean)?;
@@ -115,7 +117,7 @@ impl Display for Summary {
         writeln!(f, "{} {} {} {} {} {}",
                  str18("param"), str18("value"), str18("rel.err."),
                  str18("inter_chains"), str18("intra_chains"), str18("ratio"))?;
-        for (i, index) in ParamIndex::all(n_traits).enumerate() {
+        for (i, index) in ParamIndex::all(n_endos,n_traits).enumerate() {
             let param = self.params[index];
             let rel_err = self.relative_errors[i];
             let inter_chain_std_dev = self.inter_chain_vars[i].sqrt();

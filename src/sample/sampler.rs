@@ -30,12 +30,12 @@ impl<R: Rng> Sampler<R> {
                              e_tracer: &mut Option<Box<dyn ETracer>>) {
         for i_var in vars.indices() {
             match i_var {
-                VarIndex::E { i_data_point } => {
-                    let e = self.gibbs.draw_e(vars, params, i_data_point);
+                VarIndex::E { i_data_point, i_endo } => {
+                    let e = self.gibbs.draw_e(vars, params, i_data_point, i_endo);
                     if let Some(e_tracer) = e_tracer {
                         e_tracer.trace_e(e);
                     }
-                    vars.es[i_data_point] = e;
+                    vars.es[i_data_point][i_endo] = e;
                 }
                 VarIndex::T { i_data_point, i_trait } => {
                     vars.ts[i_data_point][i_trait] =
