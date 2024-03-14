@@ -3,7 +3,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::data::GwasData;
-use crate::options::config::TrainConfig;
+use crate::options::config::SharedConfig;
 use crate::train::{MessageToCentral, MessageToWorker};
 use crate::params::Params;
 use crate::sample::sampler::Sampler;
@@ -11,13 +11,15 @@ use crate::sample::vars::Vars;
 
 pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
                            sender: Sender<MessageToCentral>, receiver: Receiver<MessageToWorker>,
-                           i_thread: usize, config: &TrainConfig) {
+                           i_thread: usize, config_shared: &SharedConfig) {
     let mut vars = Vars::initial_vars(data, &params);
     let rng = thread_rng();
     let meta = data.meta.clone();
-    let use_residuals = false;
+    let use_residuals = config_shared.use_residuals;
     let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, use_residuals);
-    sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in, &mut None);
+    let n_steps_burn_in = config_shared.n_steps_burn_in;
+    sampler.sample_n(data, &params, &mut vars, n_steps_burn_in,
+                     &mut None);
     loop {
         let in_message = receiver.recv().unwrap();
         match in_message {
@@ -30,7 +32,7 @@ pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
             }
             MessageToWorker::SetNewParams(params_new) => {
                 params = params_new;
-                sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in,
+                sampler.sample_n(data, &params, &mut vars, n_steps_burn_in,
                                  &mut None);
             }
             MessageToWorker::Shutdown => {

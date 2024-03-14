@@ -8,6 +8,7 @@ use crate::data::gwas::GwasCols;
 pub(crate) struct Config {
     pub(crate) files: FilesConfig,
     pub(crate) gwas: Vec<GwasConfig>,
+    pub(crate) shared: SharedConfig,
     pub(crate) train: TrainConfig,
     pub(crate) classify: ClassifyConfig,
 }
@@ -26,10 +27,15 @@ pub(crate) struct FilesConfig {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
+pub(crate) struct SharedConfig {
+    pub(crate) use_residuals: bool,
+    pub(crate) n_steps_burn_in: usize,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct TrainConfig {
     pub(crate) n_endos: usize,
     pub(crate) ids_file: String,
-    pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples_per_iteration: usize,
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,
@@ -39,8 +45,6 @@ pub(crate) struct TrainConfig {
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct ClassifyConfig {
     pub(crate) params_override: Option<ParamsOverride>,
-    pub(crate) use_residuals: bool,
-    pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples: usize,
     pub(crate) out_file: String,
     pub(crate) trace_ids: Option<Vec<String>>

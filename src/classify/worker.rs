@@ -6,7 +6,7 @@ use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
 use crate::data::GwasData;
-use crate::options::config::ClassifyConfig;
+use crate::options::config::{ClassifyConfig, SharedConfig};
 use crate::sample::vars::Vars;
 use crate::params::Params;
 use crate::sample::sampler::{ETracer, Sampler};
@@ -25,7 +25,7 @@ impl<W: Write> ETracer for ClassifyETracer<W> {
 }
 
 pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: ClassifyConfig,
-                              sender: Sender<MessageToCentral>,
+                              config_shared: SharedConfig, sender: Sender<MessageToCentral>,
                               receiver: Receiver<MessageToWorker>, i_thread: usize) {
     loop {
         let in_message = receiver.recv().unwrap();
@@ -38,7 +38,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let rng = thread_rng();
                 let meta = data.meta.clone();
                 let mut sampler =
-                    Sampler::<ThreadRng>::new(&meta, rng, config.use_residuals);
+                    Sampler::<ThreadRng>::new(&meta, rng, config_shared.use_residuals);
                 let mut e_tracer =
                     match (&config.trace_ids, data.meta.var_ids.first()) {
                         (Some(trace_ids), Some(var_id))
@@ -64,8 +64,8 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                         }
                         _ => { None }
                     };
-                sampler.sample_n(&data, &params, &mut vars, config.n_steps_burn_in, &mut
-                    e_tracer);
+                sampler.sample_n(&data, &params, &mut vars, config_shared.n_steps_burn_in,
+                                 &mut e_tracer);
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
                 let sampled = sampler.var_stats().calculate_classification();
                 let mu_calculated =

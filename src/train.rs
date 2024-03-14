@@ -10,7 +10,7 @@ use std::thread::available_parallelism;
 use crate::data::{GwasData, load_data};
 use crate::error::Error;
 use crate::options::action::Action;
-use crate::options::config::{Config, TrainConfig};
+use crate::options::config::{Config, SharedConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
@@ -49,20 +49,23 @@ impl InMessage for MessageToCentral {
 struct TrainWorkerLauncher {
     data: Arc<GwasData>,
     params: Params,
-    config: TrainConfig
+    config_shared: SharedConfig
 }
 
 impl WorkerLauncher<MessageToCentral, MessageToWorker> for TrainWorkerLauncher {
     fn launch(self, in_sender: Sender<MessageToCentral>, out_receiver: Receiver<MessageToWorker>,
               i_thread: usize) {
-        let TrainWorkerLauncher { data, params, config } = self;
-        train_worker(&data, params, in_sender, out_receiver, i_thread, &config);
+        let TrainWorkerLauncher {
+            data, params, config_shared, ..
+        } = self;
+        train_worker(&data, params, in_sender, out_receiver, i_thread, &config_shared);
     }
 }
 
 impl TrainWorkerLauncher {
-    fn new(data: Arc<GwasData>, params: Params, config: TrainConfig) -> TrainWorkerLauncher {
-        TrainWorkerLauncher { data, params, config }
+    fn new(data: Arc<GwasData>, params: Params, config_shared: SharedConfig)
+        -> TrainWorkerLauncher {
+        TrainWorkerLauncher { data, params, config_shared }
     }
 }
 
@@ -91,11 +94,11 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
         };
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     println!("Launching {} workers and burning in with {} iterations", n_threads,
-             config.train.n_steps_burn_in);
+             config.shared.n_steps_burn_in);
     let mut params = estimate_initial_params(&data, n_endos)?;
     println!("{}", params);
     let launcher =
-        TrainWorkerLauncher::new(data, params.clone(), config.train.clone());
+        TrainWorkerLauncher::new(data, params.clone(), config.shared.clone());
     let threads =
         Threads::<MessageToCentral, MessageToWorker>::new(launcher, n_threads);
     println!("Workers launched and burned in.");

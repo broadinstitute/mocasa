@@ -10,7 +10,7 @@ use std::thread::available_parallelism;
 use crate::data::{GwasData, load_data, Meta};
 use crate::error::{Error, for_file};
 use crate::options::action::Action;
-use crate::options::config::{ClassifyConfig, Config};
+use crate::options::config::{ClassifyConfig, Config, SharedConfig};
 use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
@@ -93,13 +93,16 @@ struct ClassifyWorkerLauncher {
     data: Arc<GwasData>,
     params: Params,
     config: ClassifyConfig,
+    config_shared: SharedConfig
 }
 
 impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLauncher {
     fn launch(self, in_sender: Sender<MessageToCentral>, out_receiver: Receiver<MessageToWorker>,
               i_thread: usize) {
-        let ClassifyWorkerLauncher { data, params, config } = self;
-        classify_worker(&data, &params, config, in_sender, out_receiver, i_thread);
+        let ClassifyWorkerLauncher {
+            data, params, config, config_shared
+        } = self;
+        classify_worker(&data, &params, config, config_shared, in_sender, out_receiver, i_thread);
     }
 }
 
@@ -123,19 +126,21 @@ pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error>
 pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Result<(), Error> {
     let data = Arc::new(data);
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
+    let config_shared = config.shared.clone();
     let config = config.classify.clone();
-    let launcher = ClassifyWorkerLauncher { data: data.clone(), params, config: config.clone() };
+    let out_file = config.out_file.clone();
+    let temp_out_file = format!("{}_tmp", out_file);
+    let launcher = ClassifyWorkerLauncher { data: data.clone(), params, config, config_shared };
     let threads = Threads::new(launcher, n_threads);
     let meta = &data.meta;
     let out_messages =
         (0..meta.n_data_points()).map(MessageToWorker::DataPoint);
-    let temp_out_file = format!("{}_tmp", config.out_file);
     let mut observer =
         Observer::new(&meta.var_ids, &temp_out_file, meta.clone())?;
     let in_messages = threads.task_queue(out_messages, &mut observer)?;
     let classifications: Vec<Classification> =
         in_messages.into_iter().map(|in_message| in_message.classification).collect();
-    write_out_file(&config.out_file, meta, &classifications)?;
+    write_out_file(&out_file, meta, &classifications)?;
     Ok(())
 }
 
