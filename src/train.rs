@@ -85,7 +85,7 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
-            Some(ParamTraceFileWriter::new(path, n_traits)?)
+            Some(ParamTraceFileWriter::new(path, n_endos, n_traits)?)
         } else {
             None
         };

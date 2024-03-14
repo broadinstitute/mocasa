@@ -31,7 +31,7 @@ impl Vars {
         let n_endos = params.n_endos();
         let es =
             Matrix::fill(n_data_points, n_endos,
-                         |i_data_point, i_endo| params.mus[i_endo]);
+                         |_, i_endo| params.mus[i_endo]);
         let ts =
             Matrix::fill(data.n_data_points(), data.n_traits(),
                          |i_data_point: usize, i_trait: usize|

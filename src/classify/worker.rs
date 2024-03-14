@@ -37,7 +37,8 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let mut vars = Vars::initial_vars(&data, &params);
                 let rng = thread_rng();
                 let meta = data.meta.clone();
-                let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
+                let mut sampler =
+                    Sampler::<ThreadRng>::new(&meta, rng, config.use_residuals);
                 let mut e_tracer =
                     match (&config.trace_ids, data.meta.var_ids.first()) {
                         (Some(trace_ids), Some(var_id))

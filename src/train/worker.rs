@@ -15,7 +15,8 @@ pub(crate) fn train_worker(data: &Arc<GwasData>, mut params: Params,
     let mut vars = Vars::initial_vars(data, &params);
     let rng = thread_rng();
     let meta = data.meta.clone();
-    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
+    let use_residuals = false;
+    let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, use_residuals);
     sampler.sample_n(data, &params, &mut vars, config.n_steps_burn_in, &mut None);
     loop {
         let in_message = receiver.recv().unwrap();

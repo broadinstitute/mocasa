@@ -214,12 +214,15 @@ impl ConfigBuilder {
                 normalize_mu_to_one,
             };
         let params_override: Option<ParamsOverride> = None;
+        let use_residuals = false;
         let n_steps_burn_in = defaults::classify::N_STEPS_BURN_IN;
         let n_samples = defaults::classify::N_SAMPLES;
         let out_file = options.out_file.clone();
         let trace_ids: Option<Vec<String>> = None;
         let classify =
-            ClassifyConfig { params_override, n_steps_burn_in, n_samples, out_file, trace_ids };
+            ClassifyConfig {
+                params_override, use_residuals, n_steps_burn_in, n_samples, out_file, trace_ids
+            };
         Ok(Config { files, gwas, train, classify })
     }
 
@@ -230,9 +233,9 @@ impl ConfigBuilder {
         let trait_names = Arc::new(self.trait_names.clone());
         let mut mus: Vec<f64> = Vec::with_capacity(self.endo_names.len());
         let mut taus: Vec<f64> = Vec::with_capacity(self.endo_names.len());
-        for endo_name in self.endo_names {
-            let mu: f64 = num_or_error(&self.means, &endo_name, keys::MEAN)?;
-            let tau: f64 = num_or_error(&self.vars, &endo_name, keys::VAR)?.sqrt();
+        for endo_name in &self.endo_names {
+            let mu: f64 = num_or_error(&self.means, endo_name, keys::MEAN)?;
+            let tau: f64 = num_or_error(&self.vars, endo_name, keys::VAR)?.sqrt();
             mus.push(mu);
             taus.push(tau);
         }

@@ -15,8 +15,8 @@ pub(crate) trait ETracer {
 }
 
 impl<R: Rng> Sampler<R> {
-    pub(crate) fn new(meta: &Meta, rng: R) -> Sampler<R> {
-        let gibbs = GibbsSampler::new(rng);
+    pub(crate) fn new(meta: &Meta, rng: R, use_residuals: bool) -> Sampler<R> {
+        let gibbs = GibbsSampler::new(rng, use_residuals);
         let var_stats = VarStats::new(meta.clone());
         Sampler { gibbs, var_stats }
     }

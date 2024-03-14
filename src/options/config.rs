@@ -39,6 +39,7 @@ pub(crate) struct TrainConfig {
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct ClassifyConfig {
     pub(crate) params_override: Option<ParamsOverride>,
+    pub(crate) use_residuals: bool,
     pub(crate) n_steps_burn_in: usize,
     pub(crate) n_samples: usize,
     pub(crate) out_file: String,
