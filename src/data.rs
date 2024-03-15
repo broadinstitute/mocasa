@@ -5,11 +5,13 @@ use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
+use log::trace;
 use crate::data::gwas::{GwasCols, GwasReader, GwasRecord};
 use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
 use crate::options::config::Config;
+use crate::util::nan_check::find_nans_matrix;
 
 #[derive(Clone)]
 pub(crate) struct Meta {
@@ -138,6 +140,10 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
     }
     let meta =
         Meta::new(trait_names.into(), var_ids.into(), config.train.n_endos);
+    let betas_nans = find_nans_matrix(&betas);
+    trace!("There are {} NaNs among the betas.", betas_nans.len());
+    let ses_nans = find_nans_matrix(&ses);
+    trace!("There are {} NaNs among the ses.", ses_nans.len());
     Ok(GwasData { meta, betas, ses })
 }
 

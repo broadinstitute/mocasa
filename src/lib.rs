@@ -1,3 +1,4 @@
+use simplelog::{Config, SimpleLogger};
 use crate::error::Error;
 use crate::options::cli::{Choice, get_choice};
 use crate::options::config::load_config;
@@ -19,11 +20,13 @@ mod sample;
 pub fn run() -> Result<(), Error> {
     match get_choice()? {
         Choice::Core(core_options) => {
+            SimpleLogger::init(core_options.flags.log_level.to_level_filter(),
+                               Config::default())?;
             let config = load_config(&core_options.config_file)?;
             check_prerequisites(&config)?;
             match core_options.action {
-                Action::Train => { train::train_or_check(&config, core_options.dry) }
-                Action::Classify => { classify::classify_or_check(&config, core_options.dry) }
+                Action::Train => { train::train_or_check(&config, core_options.flags) }
+                Action::Classify => { classify::classify_or_check(&config, core_options.flags) }
             }
         }
         Choice::ImportPhenet(options) => { phenet::import_phenet(&options) }

@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::num::ParseFloatError;
 use std::sync::mpsc::{RecvError, RecvTimeoutError, SendError};
 use std::time::SystemTimeError;
+use log::{ParseLevelError, SetLoggerError};
 
 mod names {
     pub const MOCASA: &str = "Mocasa error";
@@ -14,6 +15,8 @@ mod names {
     pub const RECEIVE_TIMEOUT: &str = "receive timeout error";
     pub const SYSTEM_TIME: &str = "system time error";
     pub const SERDE_JSON: &str = "Serde JSON";
+    pub const LOG_LEVEL_PARSE: &str = "log level parse";
+    pub const SET_LOGGER: &str = "set logger";
 }
 
 pub enum ErrorKind {
@@ -27,6 +30,8 @@ pub enum ErrorKind {
     ReceiveTimeout,
     SystemTime,
     SerdeJson,
+    LogLevelParse,
+    SetLogger,
 }
 
 pub struct Error {
@@ -109,6 +114,20 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl From<ParseLevelError> for Error {
+    fn from(log_parse_level_error: ParseLevelError) -> Self {
+        let message = log_parse_level_error.to_string();
+        Error::new(ErrorKind::LogLevelParse, message)
+    }
+}
+
+impl From<SetLoggerError> for Error {
+    fn from(set_logger_error: SetLoggerError) -> Self {
+        let message = set_logger_error.to_string();
+        Error::new(ErrorKind::SetLogger, message)
+    }
+}
+
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -122,6 +141,8 @@ impl ErrorKind {
             ErrorKind::ReceiveTimeout => { names::RECEIVE_TIMEOUT }
             ErrorKind::SystemTime => { names::SYSTEM_TIME }
             ErrorKind::SerdeJson => { names::SERDE_JSON }
+            ErrorKind::LogLevelParse => { names::LOG_LEVEL_PARSE }
+            ErrorKind::SetLogger => { names::SET_LOGGER }
         }
     }
 }

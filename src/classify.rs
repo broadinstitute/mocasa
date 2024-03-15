@@ -14,7 +14,9 @@ use crate::options::config::{ClassifyConfig, Config, SharedConfig};
 use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
+use log::{info, trace};
 use crate::classify::worker::classify_worker;
+use crate::options::cli::Flags;
 use crate::sample::var_stats::SampledClassification;
 
 #[derive(Clone)]
@@ -106,17 +108,27 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLaunche
     }
 }
 
-pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error> {
+pub(crate) fn classify_or_check(config: &Config, flags: Flags) -> Result<(), Error> {
+    info!("Loading params");
     let params = read_params_from_file(&config.files.params)?;
-
+    trace!("Loaded params: {}", params);
     let params =
         match &config.classify.params_override {
             None => { params }
-            Some(overwrite) => { params.plus_overwrite(overwrite) }
+            Some(overwrite) => {
+                let params = params.plus_overwrite(overwrite);
+                trace!("Overwritten params: {}", params);
+                params
+            }
         };
+    trace!("Loaded params for {} endophenotypes and {} traits.", params.n_endos(),
+        params.n_traits());
+    trace!("Loading data");
     let data = load_data(config, Action::Classify)?;
-    if dry {
-        println!("User picked dry run only, so doing nothing.")
+    trace!("Loaded data with {} data points and {} traits.", data.n_data_points(), data.n_traits());
+
+    if flags.dry {
+        info!("User picked dry run only, so doing nothing.")
     } else {
         classify(data, params, config)?;
     }

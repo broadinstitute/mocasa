@@ -10,6 +10,7 @@ use std::thread::available_parallelism;
 use crate::data::{GwasData, load_data};
 use crate::error::Error;
 use crate::options::action::Action;
+use crate::options::cli::Flags;
 use crate::options::config::{Config, SharedConfig};
 use crate::report::Reporter;
 use crate::train::initial_params::estimate_initial_params;
@@ -69,11 +70,11 @@ impl TrainWorkerLauncher {
     }
 }
 
-pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
+pub(crate) fn train_or_check(config: &Config, flags: Flags) -> Result<(), Error> {
     let data = load_data(config, Action::Train)?;
     println!("Loaded data for {} variants", data.meta.n_data_points());
     println!("{}", data);
-    if dry {
+    if flags.dry {
         println!("User picked dry run only, so doing nothing.")
     } else {
         train(data, config)?;

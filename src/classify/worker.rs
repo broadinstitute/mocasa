@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
+use log::warn;
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
@@ -69,8 +70,13 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
                 let sampled = sampler.var_stats().calculate_classification();
                 let mu_calculated =
-                    calculate_mu(&params, &data.betas[0], &data.ses[0])
-                        .unwrap_or(f64::NAN);
+                    match calculate_mu(&params, &data.betas[0], &data.ses[0]) {
+                        Ok(mu) => {mu}
+                        Err(error) => {
+                            warn!("{}", error);
+                            f64::NAN
+                        }
+                    };
                 let classification = Classification { sampled, e_mean_calculated: mu_calculated };
                 sender.send(MessageToCentral { i_thread, classification }).unwrap();
             }

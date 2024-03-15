@@ -1,4 +1,6 @@
+use std::str::FromStr;
 use clap::{Arg, ArgMatches, command, Command};
+use log::Level;
 use crate::error::Error;
 use crate::options::action;
 use crate::options::action::Action;
@@ -8,6 +10,8 @@ mod params {
     pub(crate) const CONFIG_FILE_SHORT: char = 'f';
     pub(crate) const DRY: &str = "dry";
     pub(crate) const DRY_SHORT: char = 'd';
+    pub(crate) const LOG: &str = "log";
+    pub(crate) const LOG_SHORT: char = 'l';
     pub(crate) const PHENET_FILE: &str = "phenet-file";
     pub(crate) const PHENET_FILE_SHORT: char = 'i';
     pub(crate) const PARAMS_FILE: &str = "params-file";
@@ -25,10 +29,15 @@ mod commands {
     pub(crate) const SCALE_SIGMAS: &str = "scale-sigmas";
 }
 
+pub struct Flags {
+    pub(crate) dry: bool,
+    pub(crate) log_level: Level,
+}
+
 pub struct CoreOptions {
     pub(crate) action: Action,
     pub(crate) config_file: String,
-    pub(crate) dry: bool,
+    pub(crate) flags: Flags
 }
 
 pub struct ImportPhenetOptions {
@@ -60,6 +69,7 @@ fn new_action_command(name: &'static str) -> Command {
         .arg(new_arg(params::CONFIG_FILE, params::CONFIG_FILE_SHORT))
         .arg(new_arg(params::DRY, params::DRY_SHORT).num_args(0)
             .action(clap::ArgAction::SetTrue))
+        .arg(new_arg(params::LOG, params::LOG_SHORT))
 }
 
 fn new_import_phenet_command() -> Command {
@@ -89,7 +99,12 @@ fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOpti
                                  params::CONFIG_FILE_SHORT)
         })?;
     let dry = sub_matches.get_flag(params::DRY);
-    Ok(CoreOptions { action, config_file, dry })
+    let log_level =
+        sub_matches.get_one::<String>(params::LOG)
+            .map(|log_str| Level::from_str(log_str)).transpose()?
+            .unwrap_or(Level::Warn);
+    let flags = Flags { dry, log_level };
+    Ok(CoreOptions { action, config_file, flags })
 }
 
 fn get_import_phenet_options(sub_matches: &ArgMatches) -> Result<ImportPhenetOptions, Error> {
