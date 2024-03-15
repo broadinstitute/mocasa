@@ -5,6 +5,7 @@ use crate::params::Params;
 pub(crate) fn calculate_mu(params: &Params, betas: &[f64], ses: &[f64]) -> Result<f64, Error> {
     if params.mus.len() == 1 {
         let tau2 = params.taus[0].powi(2);
+        trace!("tau2 = {}", tau2);
         let numerator: f64 =
             params.betas[0].iter().zip(params.sigmas.iter()).zip(betas.iter())
                 .zip(ses.iter())
@@ -14,6 +15,7 @@ pub(crate) fn calculate_mu(params: &Params, betas: &[f64], ses: &[f64]) -> Resul
         let denominator: f64 =
             params.betas[0].iter().zip(params.sigmas.iter()).zip(ses.iter())
                 .map(|((&beta, &sigma), &se)| {
+                    trace!("beta = {}, sigma = {}, se = {}", beta, sigma, se);
                     beta.powi(2) / (sigma.powi(2) + se.powi(2))
                 }).sum::<f64>() + 1.0 / tau2;
         trace!("Numerator: {}, denominator: {}", numerator, denominator);
