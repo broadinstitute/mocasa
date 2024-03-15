@@ -1,3 +1,4 @@
+use log::trace;
 use crate::error::Error;
 use crate::params::Params;
 
@@ -15,6 +16,7 @@ pub(crate) fn calculate_mu(params: &Params, betas: &[f64], ses: &[f64]) -> Resul
                 .map(|((&beta, &sigma), &se)| {
                     beta.powi(2) / (sigma.powi(2) + se.powi(2))
                 }).sum::<f64>() + 1.0 / tau2;
+        trace!("Numerator: {}, denominator: {}", numerator, denominator);
         Ok(numerator / denominator)
     } else {
         Err(Error::from(
