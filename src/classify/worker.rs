@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
-use log::warn;
+use log::{trace, warn};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
@@ -12,7 +12,6 @@ use crate::sample::vars::Vars;
 use crate::params::Params;
 use crate::sample::sampler::{ETracer, Sampler};
 use crate::classify::exact::calculate_mu;
-use crate::util::nan_check::{trace_nans_matrix, trace_nans_vec};
 
 struct ClassifyETracer<W: Write> {
     writer: W,
@@ -35,14 +34,10 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
             MessageToWorker::DataPoint(i_data_point) => {
                 let (data, is_col) = data.only_data_point(i_data_point);
                 let trait_names = data.meta.trait_names.clone();
+                trace!("reduced params.tau[0] = {}", params.taus[0]);
                 let params = params.reduce_to(trait_names, &is_col);
-                trace_nans_vec("reduced params.mus", &params.mus);
-                trace_nans_vec("reduced params.taus", &params.taus);
-                trace_nans_matrix("reduced params.betas", &params.betas);
-                trace_nans_vec("reduced params.sigmas", &params.sigmas);
+                trace!("reduced params.tau[0] = {}", params.taus[0]);
                 let mut vars = Vars::initial_vars(&data, &params);
-                trace_nans_matrix("initial vars.es", &vars.es);
-                trace_nans_matrix("initial vars.ts", &vars.ts);
                 let rng = thread_rng();
                 let meta = data.meta.clone();
                 let mut sampler =

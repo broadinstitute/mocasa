@@ -101,7 +101,7 @@ impl Params {
         if let Some(mu_overwrite) = overwrite.mu {
             mus.fill(mu_overwrite)
         }
-        if let Some(tau_overwrite) = overwrite.mu {
+        if let Some(tau_overwrite) = overwrite.tau {
             taus.fill(tau_overwrite)
         }
         Params { trait_names, mus, taus, betas, sigmas }

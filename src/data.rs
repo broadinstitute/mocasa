@@ -10,7 +10,6 @@ use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
 use crate::options::config::Config;
-use crate::util::nan_check::trace_nans_matrix;
 
 #[derive(Clone)]
 pub(crate) struct Meta {
@@ -139,8 +138,6 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
     }
     let meta =
         Meta::new(trait_names.into(), var_ids.into(), config.train.n_endos);
-    trace_nans_matrix("data.betas", &betas);
-    trace_nans_matrix("data.ses", &betas);
     Ok(GwasData { meta, betas, ses })
 }
 
