@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
-use log::{trace, warn};
+use log::warn;
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
@@ -20,7 +20,7 @@ struct ClassifyETracer<W: Write> {
 impl<W: Write> ETracer for ClassifyETracer<W> {
     fn trace_e(&mut self, e: f64) {
         if let Err(error) = writeln!(self.writer, "{}", e) {
-            println!("Could not write E trace: {}", error)
+            warn!("Could not write E trace: {}", error)
         }
     }
 }
@@ -34,9 +34,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
             MessageToWorker::DataPoint(i_data_point) => {
                 let (data, is_col) = data.only_data_point(i_data_point);
                 let trait_names = data.meta.trait_names.clone();
-                trace!("reduced params.tau[0] = {}", params.taus[0]);
                 let params = params.reduce_to(trait_names, &is_col);
-                trace!("reduced params.tau[0] = {}", params.taus[0]);
                 let mut vars = Vars::initial_vars(&data, &params);
                 let rng = thread_rng();
                 let meta = data.meta.clone();
@@ -60,7 +58,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                                     Some(Box::new(e_tracer) as Box<dyn ETracer>)
                                 }
                                 Err(error) => {
-                                    println!("Could not create E trace file: {}", error);
+                                    warn!("Could not create E trace file: {}", error);
                                     None
                                 }
                             }
