@@ -112,6 +112,7 @@ pub(crate) fn classify_or_check(config: &Config, flags: Flags) -> Result<(), Err
     info!("Loading params");
     let params = read_params_from_file(&config.files.params)?;
     trace!("Loaded params: {}", params);
+
     let params =
         match &config.classify.params_override {
             None => { params }
