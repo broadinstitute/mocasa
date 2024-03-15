@@ -1,36 +1,37 @@
-use std::fmt::{Display, Formatter};
+use log::{Level, log_enabled, trace};
 use crate::math::matrix::Matrix;
 
-pub(crate) fn find_nans_vec(nums: &[f64]) -> Vec<usize> {
-    let mut nans: Vec<usize> = Vec::new();
-    for (i, num) in nums.iter().enumerate() {
-        if num.is_nan() {
-            nans.push(i)
-        }
-    }
-    nans
-}
-
-pub(crate) struct Coords {
-    i_row: usize,
-    i_col: usize,
-}
-
-impl Display for Coords {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.i_row, self.i_col)
-    }
-}
-
-pub(crate) fn find_nans_matrix(nums: &Matrix) -> Vec<Coords> {
-    let mut nans: Vec<Coords> = Vec::new();
-    for i_row in 0..nums.n_rows {
-        let row = &nums[i_row];
-        for (i_col, num) in row.iter().enumerate() {
+pub(crate) fn trace_nans_vec(name: &str, nums: &[f64]) {
+    if log_enabled!(Level::Trace) {
+        for (i, num) in nums.iter().enumerate() {
             if num.is_nan() {
-                nans.push(Coords { i_row, i_col })
+                trace!("{}[{}] is NaN.", name, i)
+            } else if num.is_infinite() {
+                if num.is_sign_positive() {
+                    trace!("{}[{}] is Inf.", name, i)
+                } else {
+                    trace!("{}[{}] is -Inf.", name, i)
+                }
             }
         }
     }
-    nans
+}
+
+pub(crate) fn trace_nans_matrix(name: &str, nums: &Matrix) {
+    if log_enabled!(Level::Trace) {
+        for i_row in 0..nums.n_rows {
+            let row = &nums[i_row];
+            for (i_col, num) in row.iter().enumerate() {
+                if num.is_nan() {
+                    trace!("{}[{}][{}] is NaN.", name, i_row, i_col)
+                } else if num.is_infinite() {
+                    if num.is_sign_positive() {
+                        trace!("{}[{}][{}] is Inf.", name, i_row, i_col)
+                    } else {
+                        trace!("{}[{}][{}] is -Inf.", name, i_row, i_col)
+                    }
+                }
+            }
+        }
+    }
 }
