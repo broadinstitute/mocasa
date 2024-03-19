@@ -37,7 +37,7 @@ impl Vars {
                          |i_data_point: usize, i_trait: usize|
                              {
                                  (0..n_endos).map(|i_endo|
-                                     es[i_endo][i_data_point] * params.betas[i_endo][i_trait])
+                                     es[i_data_point][i_endo] * params.betas[i_endo][i_trait])
                                      .sum::<f64>()
                              });
         Vars { meta, es, ts }
