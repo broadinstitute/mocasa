@@ -27,14 +27,14 @@ impl<R: Rng> GibbsSampler<R> {
         let frac_sum = params.mus[i_endo] / tau.powi(2) + (0..n_traits).map(|i_trait| {
             let t_eff =
                 if self.use_residuals {
-                    vars.ts[i_data_point][i_trait]
-                } else {
                     let residuals =
                         (0..n_endos).filter(|i_endo2| *i_endo2 != i_endo)
                             .map(|i_endo|
                                 params.betas[i_endo][i_trait]*vars.es[i_data_point][i_endo])
                             .sum::<f64>();
                     vars.ts[i_data_point][i_trait] - residuals
+                } else {
+                    vars.ts[i_data_point][i_trait]
                 };
             params.betas[i_endo][i_trait] * t_eff / params.sigmas[i_trait].powi(2)
         }).sum::<f64>();
