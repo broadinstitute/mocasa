@@ -197,9 +197,8 @@ impl ConfigBuilder {
         let params = options.params_file.clone();
         let files = FilesConfig { trace, params };
         let gwas = self.build_mocasa_gwas_configs()?;
-        let use_residuals = false;
         let n_steps_burn_in = defaults::shared::N_STEPS_BURN_IN;
-        let shared = SharedConfig { use_residuals, n_steps_burn_in };
+        let shared = SharedConfig { n_steps_burn_in };
         let PhenetOpts { var_id_file, .. } = phenet_opts;
         let n_endos = self.endo_names.len();
         let ids_file = var_id_file;

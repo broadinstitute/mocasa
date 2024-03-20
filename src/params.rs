@@ -54,7 +54,7 @@ impl ParamIndex {
     pub(crate) fn with_trait_name(&self, trait_names: &[String]) -> String {
         match self {
             ParamIndex::Mu(i_endo) => { format!("mu_{}", i_endo) }
-            ParamIndex::Tau(i_endo) => { format!("mu_{}", i_endo) }
+            ParamIndex::Tau(i_endo) => { format!("tau_{}", i_endo) }
             ParamIndex::Beta(i_endo, i_trait) => {
                 format!("beta_{}_{}", i_endo, trait_names[*i_trait])
             }

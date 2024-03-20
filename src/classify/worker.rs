@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
-use log::warn;
+use log::{error, warn};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
@@ -34,12 +34,23 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
             MessageToWorker::DataPoint(i_data_point) => {
                 let (data, is_col) = data.only_data_point(i_data_point);
                 let trait_names = data.meta.trait_names.clone();
+                if is_col.len() < trait_names.len() {
+                    let id = &data.meta.var_ids()[i_data_point];
+                    warn!("For {}, we have only data for {} of the {} traits.", id, is_col.len(),
+                        trait_names.len())
+                } else {
+                    for (i_i_col, i_col) in is_col.iter().enumerate() {
+                        if i_i_col != *i_col {
+                            let id = &data.meta.var_ids()[i_data_point];
+                            error!("For {id}, column indices are messed up.")
+                        }
+                    }
+                }
                 let params = params.reduce_to(trait_names, &is_col);
                 let mut vars = Vars::initial_vars(&data, &params);
                 let rng = thread_rng();
                 let meta = data.meta.clone();
-                let mut sampler =
-                    Sampler::<ThreadRng>::new(&meta, rng, config_shared.use_residuals);
+                let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
                 let mut e_tracer =
                     match (&config.trace_ids, data.meta.var_ids.first()) {
                         (Some(trace_ids), Some(var_id))

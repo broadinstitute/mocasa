@@ -28,7 +28,6 @@ pub(crate) struct FilesConfig {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct SharedConfig {
-    pub(crate) use_residuals: bool,
     pub(crate) n_steps_burn_in: usize,
 }
 
