@@ -30,6 +30,7 @@ impl<R: Rng> GibbsSampler<R> {
                         .map(|i_endo|
                             params.betas[i_endo][i_trait] * vars.es[i_data_point][i_endo])
                         .sum::<f64>();
+                assert_eq!(residuals, 0.0);
                 vars.ts[i_data_point][i_trait] - residuals
             };
             params.betas[i_endo][i_trait] * mu_t / params.sigmas[i_trait].powi(2)
