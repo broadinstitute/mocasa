@@ -35,7 +35,7 @@ pub(crate) fn estimate_initial_params(data: &GwasData) -> Result<Params, Error> 
     let mut precision_stats = Stats::new();
     se_means.iter().for_each(|se| precision_stats.add(se.powi(-2)));
     let tau =
-        1.0 / precision_stats.variance()
+        1.0 / precision_stats.mean()
             .ok_or_else(|| { Error::from("Need at least one trait.") })?
             .sqrt();
     let betas: Vec<f64> = beta_means.iter().map(|mean| mean / (mu + tau * mu.signum())).collect();
