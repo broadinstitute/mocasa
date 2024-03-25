@@ -30,7 +30,7 @@ impl OutMessage for MessageToWorker {
 }
 
 struct Classification {
-    sampled: SampledClassification,
+    sampled_classification: SampledClassification,
     e_mean_calculated: f64,
 }
 
@@ -184,7 +184,7 @@ fn write_header(writer: &mut BufWriter<File>, meta: &Meta) -> Result<(), Error> 
 
 fn write_entry(writer: &mut BufWriter<File>, id: &str, classification: &Classification)
                -> Result<(), Error> {
-    let Classification { sampled, e_mean_calculated } = classification;
+    let Classification { sampled_classification: sampled, e_mean_calculated } = classification;
     let SampledClassification { e_mean, e_std, t_means } = sampled;
     let e_part =
         e_mean.iter().zip(e_std.iter())

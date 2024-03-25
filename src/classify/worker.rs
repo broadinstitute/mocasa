@@ -79,8 +79,9 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 sampler.sample_n(&data, &params, &mut vars, config_shared.n_steps_burn_in,
                                  &mut e_tracer);
                 sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
-                let sampled = sampler.var_stats().calculate_classification();
-                let mu_calculated =
+                let sampled_classification =
+                    sampler.var_stats().calculate_classification();
+                let e_mean_calculated =
                     match calculate_mu(&params, &data.betas[0], &data.ses[0]) {
                         Ok(mu) => {mu}
                         Err(error) => {
@@ -88,7 +89,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                             f64::NAN
                         }
                     };
-                let classification = Classification { sampled, e_mean_calculated: mu_calculated };
+                let classification = Classification { sampled_classification, e_mean_calculated };
                 sender.send(MessageToCentral { i_thread, classification }).unwrap();
             }
             MessageToWorker::Shutdown => {

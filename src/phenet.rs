@@ -21,7 +21,7 @@ mod defaults {
     }
 
     pub(crate) mod classify {
-        pub(crate) const N_SAMPLES: usize = 100000;
+        pub(crate) const N_SAMPLES: usize = 100_000;
     }
 }
 

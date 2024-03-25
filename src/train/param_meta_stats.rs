@@ -29,9 +29,9 @@ impl ParamMetaStats {
         let n_traits = trait_names.len();
         let stats = (0..n_chains_used).map(|i_chain| {
             ParamIndex::all(n_endos, n_traits).map(|index| {
-                let param0 = params0[i_chain][index];
-                let param1 = params1[i_chain][index];
-                TridentStats::new(param0, param1)
+                let param_val_0 = params0[i_chain][index];
+                let param_val_1 = params1[i_chain][index];
+                TridentStats::new(param_val_0, param_val_1)
             }).collect::<Vec<TridentStats>>()
         }).collect::<Vec<Vec<TridentStats>>>();
         ParamMetaStats { n_endos, trait_names, stats }

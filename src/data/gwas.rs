@@ -44,12 +44,12 @@ impl<R: BufRead> GwasReader<R> {
     pub(crate) fn new(reader: R, cols: GwasCols)
                       -> Result<GwasReader<R>, Error> {
         let mut lines = reader.lines();
-        let header =
+        let header_line =
             lines.next().ok_or_else(|| Error::from("File is empty"))??;
         let mut i_var_id_opt: Option<usize> = None;
         let mut i_beta_opt: Option<usize> = None;
         let mut i_se_opt: Option<usize> = None;
-        for (i, col) in header.split(DELIM).enumerate() {
+        for (i, col) in header_line.split(DELIM).enumerate() {
             if col == cols.id {
                 i_var_id_opt = Some(i)
             } else if col == cols.effect {
