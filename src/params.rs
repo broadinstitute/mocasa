@@ -112,7 +112,8 @@ impl Params {
         let n_traits = self.n_traits();
         let mus: Vec<f64> = vec![1.0; n_endo];
         let taus: Vec<f64> =
-            self.taus.iter().enumerate().map(|(i_endo, tau)| tau / self.mus[i_endo])
+            self.taus.iter().enumerate()
+                .map(|(i_endo, tau)| tau / self.mus[i_endo].abs())
                 .collect();
         let betas =
             Matrix::fill(n_endo, n_traits,
