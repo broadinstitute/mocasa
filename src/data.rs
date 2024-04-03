@@ -15,7 +15,7 @@ use crate::options::config::Config;
 pub(crate) struct Meta {
     pub(crate) trait_names: Arc<Vec<String>>,
     pub(crate) var_ids: Arc<Vec<String>>,
-    pub(crate) n_endos: usize
+    pub(crate) n_endos: usize,
 }
 
 pub(crate) struct GwasData {
@@ -32,7 +32,7 @@ pub(crate) struct BetaSe {
 
 impl Meta {
     pub(crate) fn new(trait_names: Arc<Vec<String>>, var_ids: Arc<Vec<String>>, n_endos: usize)
-        -> Meta {
+                      -> Meta {
         Meta { trait_names, var_ids, n_endos }
     }
     pub(crate) fn var_ids(&self) -> &[String] { &self.var_ids }
@@ -102,9 +102,14 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
             Action::Classify => { BTreeMap::new() }
         };
     let mut trait_names: Vec<String> = Vec::with_capacity(n_traits);
+    let only_ids: &Option<Vec<String>> =
+        match action {
+            Action::Train => { &None }
+            Action::Classify => { &config.classify.only_ids }
+        };
     for (i_trait, gwas) in config.gwas.iter().enumerate() {
         trait_names.push(gwas.name.clone());
-        load_gaws(&mut beta_se_by_ids, &gwas.file, n_traits, i_trait, action)?;
+        load_gaws(&mut beta_se_by_ids, &gwas.file, n_traits, i_trait, action, only_ids)?;
     }
     let n_data_points = beta_se_by_ids.len();
     let mut var_ids: Vec<String> = Vec::with_capacity(n_data_points);
@@ -153,7 +158,7 @@ fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, Vec<Beta
 }
 
 fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_traits: usize,
-             i_trait: usize, action: Action)
+             i_trait: usize, action: Action, only_ids: &Option<Vec<String>>)
              -> Result<(), Error> {
     let gwas_reader =
         GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
@@ -163,9 +168,16 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_tr
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {
             beta_se_list[i_trait] = BetaSe { beta, se };
         } else if action == Action::Classify {
-            let mut beta_se_list = new_beta_se_list(n_traits);
-            beta_se_list[i_trait] = BetaSe { beta, se };
-            beta_se_by_id.insert(var_id, beta_se_list);
+            let use_id =
+                match only_ids {
+                    None => { true }
+                    Some(ids_list) => { ids_list.contains(&var_id) }
+                };
+            if use_id {
+                let mut beta_se_list = new_beta_se_list(n_traits);
+                beta_se_list[i_trait] = BetaSe { beta, se };
+                beta_se_by_id.insert(var_id, beta_se_list);
+            }
         }
     }
     Ok(())

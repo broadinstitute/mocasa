@@ -46,6 +46,7 @@ pub(crate) struct ClassifyConfig {
     pub(crate) params_override: Option<ParamsOverride>,
     pub(crate) n_samples: usize,
     pub(crate) out_file: String,
+    pub(crate) only_ids: Option<Vec<String>>,
     pub(crate) trace_ids: Option<Vec<String>>
 }
 
