@@ -142,7 +142,7 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
         }
     }
     let meta =
-        Meta::new(trait_names.into(), var_ids.into(), config.train.n_endos);
+        Meta::new(trait_names.into(), var_ids.into(), config.shared.n_endos);
     Ok(GwasData { meta, betas, ses })
 }
 

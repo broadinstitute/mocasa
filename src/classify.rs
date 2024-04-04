@@ -127,7 +127,12 @@ pub(crate) fn classify_or_check(config: &Config, flags: Flags) -> Result<(), Err
     trace!("Loading data");
     let data = load_data(config, Action::Classify)?;
     trace!("Loaded data with {} data points and {} traits.", data.n_data_points(), data.n_traits());
-
+    if params.n_endos() != config.shared.n_endos {
+        Err(Error::from(format!(
+            "Number of endophenotypes is {} in configuration, but {} in parameters.",
+            config.shared.n_endos, params.n_endos()
+        )))?;
+    }
     if flags.dry {
         info!("User picked dry run only, so doing nothing.")
     } else {

@@ -198,9 +198,9 @@ impl ConfigBuilder {
         let files = FilesConfig { trace, params };
         let gwas = self.build_mocasa_gwas_configs()?;
         let n_steps_burn_in = defaults::shared::N_STEPS_BURN_IN;
-        let shared = SharedConfig { n_steps_burn_in };
-        let PhenetOpts { var_id_file, .. } = phenet_opts;
         let n_endos = self.endo_names.len();
+        let shared = SharedConfig { n_endos, n_steps_burn_in };
+        let PhenetOpts { var_id_file, .. } = phenet_opts;
         let ids_file = var_id_file;
         let n_samples_per_iteration = defaults::train::N_SAMPLES_PER_ITERATION;
         let n_iterations_per_round = defaults::train::N_ITERATIONS_PER_ROUND;
@@ -208,7 +208,6 @@ impl ConfigBuilder {
         let normalize_mu_to_one = true;
         let train =
             TrainConfig {
-                n_endos,
                 ids_file,
                 n_samples_per_iteration,
                 n_iterations_per_round,

@@ -84,7 +84,7 @@ pub(crate) fn train_or_check(config: &Config, flags: Flags) -> Result<(), Error>
 
 fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let data = Arc::new(data);
-    let n_endos =  config.train.n_endos;
+    let n_endos =  config.shared.n_endos;
     let n_traits = data.meta.n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
