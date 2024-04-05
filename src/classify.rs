@@ -176,7 +176,8 @@ fn write_out_file(file: &str, meta: &Meta, classifications: &[Classification])
 fn write_header(writer: &mut BufWriter<File>, meta: &Meta) -> Result<(), Error> {
     let n_endos = meta.n_endos();
     let e_part =
-        (0..meta.n_endos()).map(|i_endo| format!("e_{}_mean\te_{}_std", i_endo, i_endo))
+        (0..meta.n_endos())
+            .map(|i_endo| format!("e_{}_mean\te_{}_std\te_{}_z", i_endo, i_endo, i_endo))
             .collect::<Vec<String>>().join("\t");
     let traits_part = meta.trait_names.join("\t");
     if n_endos == 1 {
@@ -193,7 +194,10 @@ fn write_entry(writer: &mut BufWriter<File>, id: &str, classification: &Classifi
     let SampledClassification { e_mean, e_std, t_means } = sampled;
     let e_part =
         e_mean.iter().zip(e_std.iter())
-            .map(|(e_mean, e_std)| format!("{}\t{}", e_mean, e_std))
+            .map(|(e_mean, e_std)| {
+                let e_z = e_mean / e_std;
+                format!("{}\t{}\t{}", e_mean, e_std, e_z)
+            })
             .collect::<Vec<String>>().join("\t");
     let t_means_part =
         t_means.iter().map(|f| f.to_string()).collect::<Vec<_>>().join("\t");
