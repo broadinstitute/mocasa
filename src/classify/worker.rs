@@ -6,21 +6,65 @@ use log::{error, warn};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
-use crate::data::GwasData;
+use crate::data::{GwasData, Meta};
 use crate::options::config::{ClassifyConfig, SharedConfig};
 use crate::sample::vars::Vars;
 use crate::params::Params;
-use crate::sample::sampler::{ETracer, Sampler};
+use crate::sample::sampler::{Tracer, Sampler};
 use crate::classify::exact::calculate_mu;
+use crate::error::Error;
 
-struct ClassifyETracer<W: Write> {
-    writer: W,
+struct ClassifyTracer {
+    e_writers: Vec<Result<BufWriter<File>, Error>>,
+    t_writers: Vec<Result<BufWriter<File>, Error>>,
 }
 
-impl<W: Write> ETracer for ClassifyETracer<W> {
-    fn trace_e(&mut self, e: f64) {
-        if let Err(error) = writeln!(self.writer, "{}", e) {
-            warn!("Could not write E trace: {}", error)
+impl ClassifyTracer {
+    fn new(meta: &Meta, out_file_name: &str, var_id: &str, n_endos: usize) -> ClassifyTracer {
+        let e_writers = (0..n_endos).map(|i_endo| {
+            let file_name = format!("{}_{}_trace_e_{}", out_file_name, var_id, i_endo);
+            try_writer(&file_name)
+        }).collect::<Vec<_>>();
+        let t_writers = (0..meta.n_traits()).map(|i_trait| {
+            let trait_name = &meta.trait_names[i_trait];
+            let file_name = format!("{}_{}_trace_t_{}", out_file_name, var_id, trait_name);
+            try_writer(&file_name)
+        }).collect::<Vec<_>>();
+        ClassifyTracer { e_writers, t_writers }
+    }
+}
+
+fn try_writer(file_name: &str) -> Result<BufWriter<File>, Error> {
+    match File::create(file_name) {
+        Ok(file) => { Ok(BufWriter::new(file)) }
+        Err(error) => { Err(Error::from(error)) }
+    }
+}
+
+impl Tracer for ClassifyTracer {
+    fn trace_e(&mut self, i_endo: usize, e: f64) {
+        match self.e_writers[i_endo] {
+            Ok(ref mut writer) => {
+                if let Err(error) = writeln!(writer, "{}", e) {
+                    warn!("Could not write E trace: {}", error)
+                }
+            }
+            Err(ref error) => {
+                warn!("Could not write E trace: {}", error)
+            }
+        }
+    }
+
+    fn trace_t(&mut self, i_trait: usize, t: f64) {
+        match self.t_writers[i_trait] {
+            Ok(ref mut writer) => {
+                if let Err(error) = writeln!(writer, "{}", t) {
+                    warn!("Could not write T trace: {}", error)
+                }
+            }
+            Err(ref error) => {
+                warn!("Could not write T trace: {}", error)
+            }
         }
     }
 }
@@ -51,34 +95,21 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let rng = thread_rng();
                 let meta = data.meta.clone();
                 let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
-                let mut e_tracer =
+                let mut tracer =
                     match (&config.trace_ids, data.meta.var_ids.first()) {
                         (Some(trace_ids), Some(var_id))
                         if trace_ids.contains(var_id)
                         => {
-                            let trace_file_name = {
-                                let mut temp = config.out_file.clone();
-                                temp.push('_');
-                                temp.push_str(var_id);
-                                temp
-                            };
-                            match File::create(trace_file_name) {
-                                Ok(file) => {
-                                    let writer = BufWriter::new(file);
-                                    let e_tracer = ClassifyETracer { writer };
-                                    Some(Box::new(e_tracer) as Box<dyn ETracer>)
-                                }
-                                Err(error) => {
-                                    warn!("Could not create E trace file: {}", error);
-                                    None
-                                }
-                            }
+                            let tracer =
+                                ClassifyTracer::new(&meta, &config.out_file, var_id,
+                                                    meta.n_endos());
+                            Some(Box::new(tracer) as Box<dyn Tracer>)
                         }
                         _ => { None }
                     };
                 sampler.sample_n(&data, &params, &mut vars, config_shared.n_steps_burn_in,
-                                 &mut e_tracer);
-                sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut e_tracer);
+                                 &mut tracer);
+                sampler.sample_n(&data, &params, &mut vars, config.n_samples, &mut tracer);
                 let sampled_classification =
                     sampler.var_stats().calculate_classification();
                 let e_mean_calculated =

@@ -10,8 +10,9 @@ pub(crate) struct Sampler<R: Rng> {
     var_stats: VarStats,
 }
 
-pub(crate) trait ETracer {
-    fn trace_e(&mut self, e: f64);
+pub(crate) trait Tracer {
+    fn trace_e(&mut self, i_endo: usize, e: f64);
+    fn trace_t(&mut self, i_trait: usize, t: f64);
 }
 
 impl<R: Rng> Sampler<R> {
@@ -21,34 +22,31 @@ impl<R: Rng> Sampler<R> {
         Sampler { gibbs, var_stats }
     }
     pub(crate) fn sample_n(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
-                           n_steps: usize, e_tracer: &mut Option<Box<dyn ETracer>>) {
+                           n_steps: usize, tracer: &mut Option<Box<dyn Tracer>>) {
         for _ in 0..n_steps {
-            self.sample_one(data, params, vars, e_tracer)
+            self.sample_one(data, params, vars, tracer)
         }
     }
     pub(crate) fn sample_one(&mut self, data: &GwasData, params: &Params, vars: &mut Vars,
-                             e_tracer: &mut Option<Box<dyn ETracer>>) {
-        let mut n_endos_2: usize = 0;
-        let mut n_traits_2: usize = 0;
+                             tracer: &mut Option<Box<dyn Tracer>>) {
         for i_var in vars.indices() {
             match i_var {
                 VarIndex::E { i_data_point, i_endo } => {
                     let e = self.gibbs.draw_e(vars, params, i_data_point, i_endo);
-                    if let Some(e_tracer) = e_tracer {
-                        e_tracer.trace_e(e);
+                    if let Some(e_tracer) = tracer {
+                        e_tracer.trace_e(i_endo, e);
                     }
                     vars.es[i_data_point][i_endo] = e;
-                    n_endos_2 += 1;
                 }
                 VarIndex::T { i_data_point, i_trait } => {
-                    vars.ts[i_data_point][i_trait] =
-                        self.gibbs.draw_t(data, vars, params, i_data_point, i_trait);
-                    n_traits_2 += 1;
+                    let t = self.gibbs.draw_t(data, vars, params, i_data_point, i_trait);
+                    if let Some(t_tracer) = tracer {
+                        t_tracer.trace_t(i_trait, t);
+                    }
+                    vars.ts[i_data_point][i_trait] = t;
                 }
             }
         }
-        assert_eq!(n_endos_2, data.meta.n_endos());
-        assert_eq!(n_traits_2, data.meta.n_traits());
         self.var_stats.add(vars);
     }
     pub(crate) fn var_stats(&self) -> &VarStats { &self.var_stats }
