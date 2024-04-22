@@ -1,6 +1,6 @@
 #!/bin/bash
 
-run_script=run_script=$(readlink -f "$0")
+run_script=$(readlink -f "$0")
 
 dir=$(pwd)
 n_chunks=10
