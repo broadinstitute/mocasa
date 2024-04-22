@@ -16,7 +16,7 @@ use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, Wo
 use std::io::Write;
 use log::{info, trace};
 use crate::classify::worker::classify_worker;
-use crate::options::cli::Flags;
+use crate::options::cli::{Chunking, Flags};
 use crate::sample::var_stats::SampledClassification;
 
 #[derive(Clone)]
@@ -95,7 +95,7 @@ struct ClassifyWorkerLauncher {
     data: Arc<GwasData>,
     params: Params,
     config: ClassifyConfig,
-    config_shared: SharedConfig
+    config_shared: SharedConfig,
 }
 
 impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLauncher {
@@ -136,23 +136,37 @@ pub(crate) fn classify_or_check(config: &Config, flags: Flags) -> Result<(), Err
     if flags.dry {
         info!("User picked dry run only, so doing nothing.")
     } else {
-        classify(data, params, config)?;
+        classify(data, params, config, &flags.chunking)?;
     }
     Ok(())
 }
 
-pub(crate) fn classify(data: GwasData, params: Params, config: &Config) -> Result<(), Error> {
+pub(crate) fn classify(data: GwasData, params: Params, config: &Config,
+                       chunking: &Option<Chunking>)
+                       -> Result<(), Error> {
     let data = Arc::new(data);
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     let config_shared = config.shared.clone();
     let config = config.classify.clone();
-    let out_file = config.out_file.clone();
+    let out_file =
+        match chunking {
+            None => config.out_file.clone(),
+            Some(Chunking { i_chunk, .. }) => { format!("{}_{}", config.out_file, i_chunk) }
+        };
     let temp_out_file = format!("{}_tmp", out_file);
     let launcher = ClassifyWorkerLauncher { data: data.clone(), params, config, config_shared };
     let threads = Threads::new(launcher, n_threads);
     let meta = &data.meta;
+    let n_data_points = meta.n_data_points();
     let out_messages =
-        (0..meta.n_data_points()).map(MessageToWorker::DataPoint);
+        match chunking {
+            None => { (0..n_data_points).map(MessageToWorker::DataPoint) }
+            Some(Chunking { n_chunks, i_chunk }) => {
+                let start = (i_chunk - 1) * n_data_points / n_chunks;
+                let end = i_chunk * n_data_points / n_chunks;
+                (start..end).map(MessageToWorker::DataPoint)
+            }
+        };
     let mut observer =
         Observer::new(&meta.var_ids, &temp_out_file, meta.clone())?;
     let in_messages = threads.task_queue(out_messages, &mut observer)?;

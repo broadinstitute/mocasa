@@ -22,6 +22,10 @@ mod params {
     pub(crate) const SCALE_SHORT: char = 's';
     pub(crate) const OUT_FILE: &str = "out-file";
     pub(crate) const OUT_FILE_SHORT: char = 'o';
+    pub(crate) const N_CHUNKS: &str = "n-chunks";
+    pub(crate) const N_CHUNKS_SHORT: char = 'x';
+    pub(crate) const I_CHUNK: &str = "i-chunk";
+    pub(crate) const I_CHUNK_SHORT: char = 'k';
 }
 
 mod commands {
@@ -29,15 +33,21 @@ mod commands {
     pub(crate) const SCALE_SIGMAS: &str = "scale-sigmas";
 }
 
+pub struct Chunking {
+    pub(crate) n_chunks: usize,
+    pub(crate) i_chunk: usize,
+}
+
 pub struct Flags {
     pub(crate) dry: bool,
     pub(crate) log_level: Level,
+    pub(crate) chunking: Option<Chunking>,
 }
 
 pub struct CoreOptions {
     pub(crate) action: Action,
     pub(crate) config_file: String,
-    pub(crate) flags: Flags
+    pub(crate) flags: Flags,
 }
 
 pub struct ImportPhenetOptions {
@@ -50,13 +60,13 @@ pub struct ImportPhenetOptions {
 pub(crate) struct ScaleSigmasOptions {
     pub(crate) in_file: String,
     pub(crate) scale: f64,
-    pub(crate) out_file: String
+    pub(crate) out_file: String,
 }
 
 pub(crate) enum Choice {
     Core(CoreOptions),
     ImportPhenet(ImportPhenetOptions),
-    ScaleSigmas(ScaleSigmasOptions)
+    ScaleSigmas(ScaleSigmasOptions),
 }
 
 fn new_arg(name: &'static str, short: char) -> Arg {
@@ -69,6 +79,10 @@ fn new_action_command(name: &'static str) -> Command {
         .arg(new_arg(params::CONFIG_FILE, params::CONFIG_FILE_SHORT))
         .arg(new_arg(params::DRY, params::DRY_SHORT).num_args(0)
             .action(clap::ArgAction::SetTrue))
+        .arg(new_arg(params::N_CHUNKS, params::N_CHUNKS_SHORT)
+            .value_parser(clap::value_parser!(usize)))
+        .arg(new_arg(params::I_CHUNK, params::I_CHUNK_SHORT)
+            .value_parser(clap::value_parser!(usize)))
         .arg(new_arg(params::LOG, params::LOG_SHORT))
 }
 
@@ -103,7 +117,24 @@ fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOpti
         sub_matches.get_one::<String>(params::LOG)
             .map(|log_str| Level::from_str(log_str)).transpose()?
             .unwrap_or(Level::Warn);
-    let flags = Flags { dry, log_level };
+    let n_chunks = sub_matches.get_one::<usize>(params::N_CHUNKS).cloned();
+    let i_chunk = sub_matches.get_one::<usize>(params::I_CHUNK).cloned();
+    let chunking =
+        match (n_chunks, i_chunk) {
+            (Some(n_chunks), Some(i_chunk)) =>
+                if i_chunk > n_chunks {
+                    Err(Error::from("i_chunk cannot be larger than n_chunks."))
+                } else if i_chunk == 0 {
+                    Err(Error::from("i_chunk must be larger than zero."))
+                } else {
+                    Ok(Some(Chunking { n_chunks, i_chunk }))
+                },
+            (None, None) => Ok(None),
+            _ => Err(Error::from(
+                "Both or neither of n-chunks and i-chunk must be specified."
+            ))
+        }?;
+    let flags = Flags { dry, log_level, chunking };
     Ok(CoreOptions { action, config_file, flags })
 }
 
