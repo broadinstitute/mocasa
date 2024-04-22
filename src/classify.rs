@@ -14,7 +14,7 @@ use crate::options::config::{ClassifyConfig, Config, SharedConfig};
 use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
-use log::{info, trace};
+use log::{info, trace, warn};
 use crate::classify::worker::classify_worker;
 use crate::options::cli::{Chunking, Flags};
 use crate::sample::var_stats::SampledClassification;
@@ -148,6 +148,12 @@ pub(crate) fn classify(data: GwasData, params: Params, config: &Config,
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     let config_shared = config.shared.clone();
     let config = config.classify.clone();
+    match chunking {
+        None => { warn!("No chunking") }
+        Some(Chunking { n_chunks, i_chunk }) => {
+            warn!("Chunking into {} chunks, this is chunk {}", n_chunks, i_chunk)
+        }
+    }
     let out_file =
         match chunking {
             None => config.out_file.clone(),
