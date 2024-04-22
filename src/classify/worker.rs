@@ -120,7 +120,8 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                             f64::NAN
                         }
                     };
-                let classification = Classification { sampled_classification, e_mean_calculated };
+                let classification =
+                    Classification { i_data_point, sampled_classification, e_mean_calculated };
                 sender.send(MessageToCentral { i_thread, classification }).unwrap();
             }
             MessageToWorker::Shutdown => {
