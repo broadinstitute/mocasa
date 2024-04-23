@@ -1,9 +1,10 @@
 #!/bin/bash
 
+n_chunks=10
+
 run_script=$(readlink -f "$0")
 
 dir=$(pwd)
-n_chunks=10
 
 if [[ $SGE_TASK_ID ]]; then
   /humgen/diabetes2/users/oliverr/mocasa/multendo/bin/mocasa classify -f "$dir"/config.toml -x $n_chunks -k "$SGE_TASK_ID" "$@"
