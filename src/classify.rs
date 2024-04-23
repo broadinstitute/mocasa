@@ -73,8 +73,8 @@ impl TaskQueueObserver<MessageToCentral, MessageToWorker> for Observer {
         }
     }
 
-    fn have_received(&mut self, in_message: &MessageToCentral, i_task: usize, _: usize) {
-        let var_id = &self.var_ids[i_task];
+    fn have_received(&mut self, in_message: &MessageToCentral, _i_task: usize, _: usize) {
+        let var_id = &self.var_ids[in_message.classification.i_data_point];
         let io_result =
             write_entry(&mut self.writer, var_id, &in_message.classification);
         if let Err(error) = io_result {
@@ -187,8 +187,8 @@ fn write_out_file(file: &str, meta: &Meta, classifications: &[Classification])
                   -> Result<(), Error> {
     let mut writer = BufWriter::new(for_file(file, File::create(file))?);
     write_header(&mut writer, meta)?;
-    for (id, classification)
-    in meta.var_ids.iter().zip(classifications.iter()) {
+    for classification in classifications {
+        let id = meta.var_ids[classification.i_data_point].as_str();
         write_entry(&mut writer, id, classification)?;
     }
     Ok(())
@@ -212,8 +212,7 @@ fn write_header(writer: &mut BufWriter<File>, meta: &Meta) -> Result<(), Error> 
 fn write_entry(writer: &mut BufWriter<File>, id: &str, classification: &Classification)
                -> Result<(), Error> {
     let Classification {
-        i_data_point, sampled_classification: sampled,
-        e_mean_calculated
+        sampled_classification: sampled, e_mean_calculated, ..
     } = classification;
     let SampledClassification { e_mean, e_std, t_means } = sampled;
     let e_part =
