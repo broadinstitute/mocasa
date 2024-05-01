@@ -203,6 +203,7 @@ impl ConfigBuilder {
         let n_iterations_per_round = defaults::train::N_ITERATIONS_PER_ROUND;
         let n_rounds = defaults::train::N_ROUNDS;
         let normalize_mu_to_one = true;
+        let params_trace_file: Option<String> = None;
         let train =
             TrainConfig {
                 ids_file,
@@ -211,6 +212,7 @@ impl ConfigBuilder {
                 n_iterations_per_round,
                 n_rounds,
                 normalize_mu_to_one,
+                params_trace_file
             };
         let params_override: Option<ParamsOverride> = None;
         let n_steps_burn_in = defaults::classify::N_STEPS_BURN_IN;
