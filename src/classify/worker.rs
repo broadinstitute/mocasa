@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
-use log::{error, warn};
+use log::warn;
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
@@ -76,22 +76,14 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
         let in_message = receiver.recv().unwrap();
         match in_message {
             MessageToWorker::DataPoint(i_data_point) => {
+                let n_traits_total = data.meta.n_traits();
                 let (data, is_col) = data.only_data_point(i_data_point);
                 let trait_names = data.meta.trait_names.clone();
-                if is_col.len() < trait_names.len() {
+                if data.meta.n_traits() < n_traits_total {
                     let id = &data.meta.var_ids()[0];
-                    warn!("For {}, we have only data for {} of the {} traits.", id, is_col.len(),
-                        trait_names.len())
-                } else {
-                    for (i_i_col, i_col) in is_col.iter().enumerate() {
-                        if i_i_col != *i_col {
-                            let id = &data.meta.var_ids()[0];
-                            let col_str =
-                                is_col.iter().map(|i| i.to_string())
-                                    .collect::<Vec<_>>().join(", ");
-                            error!("For {id}, column indices are messed up {col_str}.")
-                        }
-                    }
+                    let trait_list = trait_names.join(", ");
+                    warn!("For {}, of the {} traits, we only have data for {} traits ({}).", id,
+                        n_traits_total, data.meta.n_traits(), trait_list)
                 }
                 let params = params.reduce_to(trait_names, &is_col);
                 let mut vars = Vars::initial_vars(&data, &params);
