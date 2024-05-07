@@ -79,14 +79,17 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 let (data, is_col) = data.only_data_point(i_data_point);
                 let trait_names = data.meta.trait_names.clone();
                 if is_col.len() < trait_names.len() {
-                    let id = &data.meta.var_ids()[i_data_point];
+                    let id = &data.meta.var_ids()[0];
                     warn!("For {}, we have only data for {} of the {} traits.", id, is_col.len(),
                         trait_names.len())
                 } else {
                     for (i_i_col, i_col) in is_col.iter().enumerate() {
                         if i_i_col != *i_col {
-                            let id = &data.meta.var_ids()[i_data_point];
-                            error!("For {id}, column indices are messed up.")
+                            let id = &data.meta.var_ids()[0];
+                            let col_str =
+                                is_col.iter().map(|i| i.to_string())
+                                    .collect::<Vec<_>>().join(", ");
+                            error!("For {id}, column indices are messed up {col_str}.")
                         }
                     }
                 }
