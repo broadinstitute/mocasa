@@ -1,15 +1,16 @@
-pub(crate) mod gwas;
-
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
-use crate::data::gwas::{GwasCols, GwasReader, GwasRecord};
+
+use crate::data::gwas::{GwasReader, GwasRecord};
 use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
-use crate::options::config::Config;
+use crate::options::config::{Config, GwasConfig};
+
+pub(crate) mod gwas;
 
 #[derive(Clone)]
 pub(crate) struct Meta {
@@ -100,7 +101,7 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
     let mut trait_names: Vec<String> = Vec::with_capacity(n_traits);
     for (i_trait, gwas) in config.gwas.iter().enumerate() {
         trait_names.push(gwas.name.clone());
-        load_gaws(&mut beta_se_by_ids, &gwas.file, n_traits, i_trait, action)?;
+        load_gaws(&mut beta_se_by_ids, gwas, n_traits, i_trait, action)?;
     }
     let n_data_points = beta_se_by_ids.len();
     let mut var_ids: Vec<String> = Vec::with_capacity(n_data_points);
@@ -147,12 +148,13 @@ fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, Vec<Beta
     Ok(beta_se_by_id)
 }
 
-fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, file: &str, n_traits: usize,
-             i_trait: usize, action: Action)
+fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &GwasConfig,
+             n_traits: usize, i_trait: usize, action: Action)
              -> Result<(), Error> {
+    let file = &gwas_config.file;
     let gwas_reader =
         GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
-                        GwasCols::default())?;
+                        gwas_config.cols.clone().unwrap_or_default())?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = gwas_record?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {

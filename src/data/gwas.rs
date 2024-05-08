@@ -2,7 +2,7 @@ use std::io::{BufRead, Lines};
 use serde::{Deserialize, Serialize};
 use crate::error::Error;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct GwasCols {
     pub(crate) id: String,
     pub(crate) effect: String,
@@ -59,11 +59,11 @@ impl<R: BufRead> GwasReader<R> {
             }
         }
         let i_var_id =
-            i_var_id_opt.ok_or_else(|| Error::from("No VAR_ID column"))?;
+            i_var_id_opt.ok_or_else(|| Error::from(format!("No {} column", cols.id)))?;
         let i_beta =
-            i_beta_opt.ok_or_else(|| Error::from("No BETA column"))?;
+            i_beta_opt.ok_or_else(|| Error::from(format!("No {} column", cols.effect)))?;
         let i_se =
-            i_se_opt.ok_or_else(|| Error::from("No SE column"))?;
+            i_se_opt.ok_or_else(|| Error::from(format!("No {} column", cols.se)))?;
         Ok(GwasReader { lines, i_var_id, i_beta, i_se, cols })
     }
     pub(crate) fn parse_line(&mut self, line: &str) -> Result<GwasRecord, Error> {

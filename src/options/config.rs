@@ -12,7 +12,7 @@ pub(crate) struct Config {
     pub(crate) classify: ClassifyConfig,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct GwasConfig {
     pub(crate) name: String,
     pub(crate) file: String,
