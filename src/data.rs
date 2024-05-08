@@ -156,7 +156,7 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &Gw
         for_context(file, GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
                         gwas_config.cols.clone().unwrap_or_default()))?;
     for gwas_record in gwas_reader {
-        let GwasRecord { var_id, beta, se } = gwas_record?;
+        let GwasRecord { var_id, beta, se } = for_context(file, gwas_record)?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {
             beta_se_list[i_trait] = BetaSe { beta, se };
         } else if action == Action::Classify {
