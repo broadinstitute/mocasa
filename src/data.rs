@@ -5,7 +5,7 @@ use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 
 use crate::data::gwas::{GwasReader, GwasRecord};
-use crate::error::{Error, for_file};
+use crate::error::{Error, for_context, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
 use crate::options::config::{Config, GwasConfig};
@@ -153,8 +153,8 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &Gw
              -> Result<(), Error> {
     let file = &gwas_config.file;
     let gwas_reader =
-        GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
-                        gwas_config.cols.clone().unwrap_or_default())?;
+        for_context(file, GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
+                        gwas_config.cols.clone().unwrap_or_default()))?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = gwas_record?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {
