@@ -15,8 +15,6 @@ pub(crate) mod default_cols {
     pub(crate) const SE: &str = "SE";
 }
 
-const DELIM: char = ';';
-
 pub(crate) struct GwasReader<R: BufRead> {
     lines: Lines<R>,
     delim: char,
@@ -41,11 +39,13 @@ impl Default for GwasCols {
     }
 }
 
-fn get_delim(header: &str) -> char {
-    let mut delim = DELIM;
+fn get_delim(header: &str) -> Result<char, Error> {
+    let no_delim_found_msg =
+        "Can only parse data files with semicolon, tab or comma as delimiter.";
+    let mut delim: Result<char, Error> = Err(Error::from(no_delim_found_msg));
     for c in &[';', '\t', ','] {
         if header.contains(*c) {
-            delim = *c;
+            delim = Ok(*c);
             break;
         }
     }
@@ -62,7 +62,7 @@ impl<R: BufRead> GwasReader<R> {
         let mut i_var_id_opt: Option<usize> = None;
         let mut i_beta_opt: Option<usize> = None;
         let mut i_se_opt: Option<usize> = None;
-        let delim = get_delim(&header);
+        let delim = get_delim(&header)?;
         for (i, col) in header.split(delim).enumerate() {
             if col == cols.id {
                 i_var_id_opt = Some(i)
