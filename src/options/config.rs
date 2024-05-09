@@ -13,7 +13,7 @@ pub(crate) struct Config {
     pub(crate) classify: ClassifyConfig,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct GwasConfig {
     pub(crate) name: String,
     pub(crate) file: String,
@@ -39,6 +39,7 @@ pub(crate) struct TrainConfig {
     pub(crate) n_iterations_per_round: usize,
     pub(crate) n_rounds: usize,
     pub(crate) normalize_mu_to_one: bool,
+    pub(crate) params_trace_file: Option<String>
 }
 
 #[derive(Deserialize, Serialize, Clone)]

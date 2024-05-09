@@ -1,4 +1,5 @@
 use simplelog::{Config, SimpleLogger};
+use crate::check::check_config;
 use crate::error::Error;
 use crate::options::cli::{Choice, get_choice};
 use crate::options::config::load_config;
@@ -16,6 +17,7 @@ mod report;
 mod phenet;
 mod params;
 mod sample;
+mod check;
 
 pub fn run() -> Result<(), Error> {
     match get_choice()? {
@@ -23,6 +25,7 @@ pub fn run() -> Result<(), Error> {
             SimpleLogger::init(core_options.flags.log_level.to_level_filter(),
                                Config::default())?;
             let config = load_config(&core_options.config_file)?;
+            check_config(&config)?;
             check_prerequisites(&config)?;
             match core_options.action {
                 Action::Train => { train::train_or_check(&config, core_options.flags) }

@@ -15,6 +15,7 @@ use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
 use log::{info, trace, warn};
+use crate::check::check_params;
 use crate::classify::worker::classify_worker;
 use crate::options::cli::{Chunking, Flags};
 use crate::sample::var_stats::SampledClassification;
@@ -113,7 +114,7 @@ pub(crate) fn classify_or_check(config: &Config, flags: Flags) -> Result<(), Err
     info!("Loading params");
     let params = read_params_from_file(&config.files.params)?;
     trace!("Loaded params: {}", params);
-
+    check_params(config, &params)?;
     let params =
         match &config.classify.params_override {
             None => { params }

@@ -174,10 +174,19 @@ impl Display for Error {
 impl std::error::Error for Error {}
 
 pub(crate) fn for_file<T>(file: &str, result: std::io::Result<T>) -> Result<T, Error> {
+    for_context_kind(file, ErrorKind::IOError, result)
+}
+
+pub(crate) fn for_context<T>(context: &str, result: Result<T, Error>) -> Result<T, Error> {
+    for_context_kind(context, ErrorKind::Mocasa, result)
+}
+
+fn for_context_kind<T, E: std::error::Error>(context: &str, kind: ErrorKind, result: Result<T, E>)
+    -> Result<T, Error> {
     match result {
         Ok(value) => { Ok(value) }
         Err(error) => {
-            Err(Error::new(ErrorKind::IOError, format!("{}: {}", file, error)))
+            Err(Error::new(kind, format!("{}: {}", context, error)))
         }
     }
 }

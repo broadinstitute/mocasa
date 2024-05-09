@@ -2,7 +2,7 @@ use std::io::{BufRead, Lines};
 use serde::{Deserialize, Serialize};
 use crate::error::Error;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub(crate) struct GwasCols {
     pub(crate) id: String,
     pub(crate) effect: String,
@@ -15,10 +15,9 @@ pub(crate) mod default_cols {
     pub(crate) const SE: &str = "SE";
 }
 
-const DELIM: char = ';';
-
 pub(crate) struct GwasReader<R: BufRead> {
     lines: Lines<R>,
+    delim: char,
     i_var_id: usize,
     i_beta: usize,
     i_se: usize,
@@ -40,7 +39,21 @@ impl Default for GwasCols {
     }
 }
 
+fn get_delim(header: &str) -> Result<char, Error> {
+    let no_delim_found_msg =
+        "Can only parse data files with semicolon, tab or comma as delimiter.";
+    let mut delim: Result<char, Error> = Err(Error::from(no_delim_found_msg));
+    for c in &[';', '\t', ','] {
+        if header.contains(*c) {
+            delim = Ok(*c);
+            break;
+        }
+    }
+    delim
+}
+
 impl<R: BufRead> GwasReader<R> {
+
     pub(crate) fn new(reader: R, cols: GwasCols)
                       -> Result<GwasReader<R>, Error> {
         let mut lines = reader.lines();
@@ -49,7 +62,8 @@ impl<R: BufRead> GwasReader<R> {
         let mut i_var_id_opt: Option<usize> = None;
         let mut i_beta_opt: Option<usize> = None;
         let mut i_se_opt: Option<usize> = None;
-        for (i, col) in header_line.split(DELIM).enumerate() {
+        let delim = get_delim(&header_line)?;
+        for (i, col) in header_line.split(delim).enumerate() {
             if col == cols.id {
                 i_var_id_opt = Some(i)
             } else if col == cols.effect {
@@ -59,18 +73,18 @@ impl<R: BufRead> GwasReader<R> {
             }
         }
         let i_var_id =
-            i_var_id_opt.ok_or_else(|| Error::from("No VAR_ID column"))?;
+            i_var_id_opt.ok_or_else(|| Error::from(format!("No {} column", cols.id)))?;
         let i_beta =
-            i_beta_opt.ok_or_else(|| Error::from("No BETA column"))?;
+            i_beta_opt.ok_or_else(|| Error::from(format!("No {} column", cols.effect)))?;
         let i_se =
-            i_se_opt.ok_or_else(|| Error::from("No SE column"))?;
-        Ok(GwasReader { lines, i_var_id, i_beta, i_se, cols })
+            i_se_opt.ok_or_else(|| Error::from(format!("No {} column", cols.se)))?;
+        Ok(GwasReader { lines, delim, i_var_id, i_beta, i_se, cols })
     }
     pub(crate) fn parse_line(&mut self, line: &str) -> Result<GwasRecord, Error> {
         let mut var_id_opt: Option<String> = None;
         let mut beta_opt: Option<f64> = None;
         let mut se_opt: Option<f64> = None;
-        for (i, part) in line.split(DELIM).enumerate() {
+        for (i, part) in line.split(self.delim).enumerate() {
             if i == self.i_var_id {
                 var_id_opt = Some(part.to_string())
             } else if i == self.i_beta {
