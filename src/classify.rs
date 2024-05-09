@@ -14,6 +14,7 @@ use crate::options::config::{ClassifyConfig, Config};
 use crate::params::{Params, read_params_from_file};
 use crate::util::threads::{InMessage, OutMessage, TaskQueueObserver, Threads, WorkerLauncher};
 use std::io::Write;
+use crate::check::check_params;
 use crate::classify::worker::classify_worker;
 use crate::sample::var_stats::SampledClassification;
 
@@ -105,8 +106,8 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for ClassifyWorkerLaunche
 
 pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let params = read_params_from_file(&config.files.params)?;
+    check_params(config, &params)?;
     println!("Read from file mu = {}, tau = {}", params.mu, params.tau);
-
     let params =
         match &config.classify.params_override {
             None => { params }
