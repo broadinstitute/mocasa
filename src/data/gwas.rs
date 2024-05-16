@@ -1,5 +1,6 @@
 use std::io::{BufRead, Lines};
 use serde::{Deserialize, Serialize};
+use crate::data;
 use crate::error::Error;
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -40,10 +41,8 @@ impl Default for GwasCols {
 }
 
 fn get_delim(header: &str) -> Result<char, Error> {
-    let no_delim_found_msg =
-        "Can only parse data files with semicolon, tab or comma as delimiter.";
-    let mut delim: Result<char, Error> = Err(Error::from(no_delim_found_msg));
-    for c in &[';', '\t', ','] {
+    let mut delim: Result<char, Error> = Err(Error::from(data::MISSING_DELIM_MSG));
+    for c in data::DELIM_LIST {
         if header.contains(*c) {
             delim = Ok(*c);
             break;

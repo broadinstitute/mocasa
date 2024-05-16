@@ -1,4 +1,4 @@
-use crate::data::Meta;
+use crate::data::{Meta, Weights};
 use crate::math::matrix::Matrix;
 use crate::params::Params;
 use crate::sample::vars::Vars;
@@ -47,32 +47,33 @@ impl VarStats {
             }
         }
     }
-    pub(crate) fn compute_new_params(&self) -> Params {
+    pub(crate) fn compute_new_params(&self, weights: &Weights) -> Params {
         let meta = &self.meta;
         let n_f = self.n as f64;
         let n_data_points = meta.n_data_points();
-        let n_data_points_f = n_data_points as f64;
         let n_traits = meta.n_traits();
         let mut sum_for_mu: f64 = 0.0;
         for j in 0..n_data_points {
             let mean_e_j = self.e_sums[j] / n_f;
-            sum_for_mu += mean_e_j;
+            sum_for_mu += weights.weights[j] * mean_e_j;
         }
-        let mu = sum_for_mu / n_data_points_f;
+        let mu = sum_for_mu / weights.sum;
         let mut sum_for_tau: f64 = 0.0;
         for j in 0..n_data_points {
             let mean_e2_j = self.e2_sums[j] / n_f;
             let mean_e_j = self.e_sums[j] / n_f;
-            sum_for_tau += mean_e2_j - 2.0 * mu * mean_e_j + n_data_points_f * mu.powi(2);
+            sum_for_tau +=
+                weights.weights[j] *
+                    (mean_e2_j - 2.0 * mu * mean_e_j + weights.sum * mu.powi(2));
         }
-        let tau = (sum_for_tau / n_data_points_f).sqrt();
+        let tau = (sum_for_tau / weights.sum).sqrt();
         let mut betas: Vec<f64> = Vec::with_capacity(n_traits);
         for i in 0..n_traits {
             let mut mean_e_t_sum: f64 = 0.0;
             let mut mean_e2_sum: f64 = 0.0;
             for j in 0..n_data_points {
-                mean_e_t_sum += self.e_t_sums[j][i] / n_f;
-                mean_e2_sum += self.e2_sums[j] / n_f;
+                mean_e_t_sum += weights.weights[j] * self.e_t_sums[j][i] / n_f;
+                mean_e2_sum += weights.weights[j] * self.e2_sums[j] / n_f;
             }
             betas.push(mean_e_t_sum / mean_e2_sum);
         }
@@ -84,9 +85,11 @@ impl VarStats {
                 let mean_e_t_j_i = self.e_t_sums[j][i] / n_f;
                 let mean_e2_j_i = self.e2_sums[j] / n_f;
                 sum_for_sigma +=
-                    mean_t2_j_i - 2.0 * betas[i] * mean_e_t_j_i + beta.powi(2) * mean_e2_j_i
+                    weights.weights[j] *
+                        (mean_t2_j_i - 2.0 * betas[i] * mean_e_t_j_i +
+                            beta.powi(2) * mean_e2_j_i)
             }
-            let sigma = (sum_for_sigma / n_data_points_f).sqrt();
+            let sigma = (sum_for_sigma / weights.sum).sqrt();
             sigmas.push(sigma)
         }
         let trait_names = meta.trait_names.clone();

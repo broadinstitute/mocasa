@@ -1,23 +1,24 @@
-mod worker;
-pub(crate) mod param_meta_stats;
-mod initial_params;
-
 use std::cmp;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread::available_parallelism;
-use crate::data::{GwasData, load_data};
+
+use crate::data::{load_data, LoadedData};
 use crate::error::Error;
 use crate::options::action::Action;
 use crate::options::config::{Config, TrainConfig};
+use crate::params::{Params, write_params_to_file};
 use crate::report::Reporter;
+use crate::sample::trace_file::ParamTraceFileWriter;
 use crate::train::initial_params::estimate_initial_params;
 use crate::train::param_meta_stats::ParamMetaStats;
-use crate::params::{Params, write_params_to_file};
-use crate::sample::trace_file::ParamTraceFileWriter;
 use crate::train::worker::train_worker;
 use crate::util::threads::{InMessage, OutMessage, Threads, WorkerLauncher};
+
+mod worker;
+pub(crate) mod param_meta_stats;
+mod initial_params;
 
 #[derive(Clone)]
 pub(crate) enum MessageToWorker {
@@ -47,7 +48,7 @@ impl InMessage for MessageToCentral {
 
 #[derive(Clone)]
 struct TrainWorkerLauncher {
-    data: Arc<GwasData>,
+    data: Arc<LoadedData>,
     params: Params,
     config: TrainConfig
 }
@@ -61,15 +62,15 @@ impl WorkerLauncher<MessageToCentral, MessageToWorker> for TrainWorkerLauncher {
 }
 
 impl TrainWorkerLauncher {
-    fn new(data: Arc<GwasData>, params: Params, config: TrainConfig) -> TrainWorkerLauncher {
+    fn new(data: Arc<LoadedData>, params: Params, config: TrainConfig) -> TrainWorkerLauncher {
         TrainWorkerLauncher { data, params, config }
     }
 }
 
 pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     let data = load_data(config, Action::Train)?;
-    println!("Loaded data for {} variants", data.meta.n_data_points());
-    println!("{}", data);
+    println!("Loaded data for {} variants", data.gwas_data.meta.n_data_points());
+    println!("{}", data.gwas_data);
     if dry {
         println!("User picked dry run only, so doing nothing.")
     } else {
@@ -78,9 +79,9 @@ pub(crate) fn train_or_check(config: &Config, dry: bool) -> Result<(), Error> {
     Ok(())
 }
 
-fn train(data: GwasData, config: &Config) -> Result<(), Error> {
+fn train(data: LoadedData, config: &Config) -> Result<(), Error> {
     let data = Arc::new(data);
-    let n_traits = data.meta.n_traits();
+    let n_traits = data.gwas_data.meta.n_traits();
     let mut params_trace_writer =
         if let Some(path) = &config.files.trace {
             let path = PathBuf::from(path);
@@ -91,7 +92,7 @@ fn train(data: GwasData, config: &Config) -> Result<(), Error> {
     let n_threads = cmp::max(available_parallelism()?.get(), 3);
     println!("Launching {} workers and burning in with {} iterations", n_threads,
              config.train.n_steps_burn_in);
-    let mut params = estimate_initial_params(&data)?;
+    let mut params = estimate_initial_params(&data.gwas_data)?;
     println!("{}", params);
     let launcher =
         TrainWorkerLauncher::new(data, params.clone(), config.train.clone());

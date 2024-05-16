@@ -121,7 +121,7 @@ pub(crate) fn classify_or_check(config: &Config, dry: bool) -> Result<(), Error>
     if dry {
         println!("User picked dry run only, so doing nothing.")
     } else {
-        classify(data, params, config)?;
+        classify(data.gwas_data, params, config)?;
     }
     Ok(())
 }

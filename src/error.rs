@@ -160,7 +160,8 @@ pub(crate) fn for_context<T>(context: &str, result: Result<T, Error>) -> Result<
     for_context_kind(context, ErrorKind::Mocasa, result)
 }
 
-fn for_context_kind<T, E: std::error::Error>(context: &str, kind: ErrorKind, result: Result<T, E>)
+pub(crate) fn for_context_kind<T, E: std::error::Error>(context: &str, kind: ErrorKind,
+                                                        result: Result<T, E>)
     -> Result<T, Error> {
     match result {
         Ok(value) => { Ok(value) }

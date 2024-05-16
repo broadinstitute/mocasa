@@ -5,12 +5,17 @@ use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 
 use crate::data::gwas::{GwasReader, GwasRecord};
-use crate::error::{Error, for_context, for_file};
+use crate::error::{Error, ErrorKind, for_context, for_context_kind, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
 use crate::options::config::{Config, GwasConfig};
 
 pub(crate) mod gwas;
+
+
+const DELIM_LIST: &[char; 4] = &[';', '\t', ',', ' '];
+const MISSING_DELIM_MSG: &str =
+    "Can only parse data files with semicolon, tab, comma or single blank as delimiter.";
 
 #[derive(Clone)]
 pub(crate) struct Meta {
@@ -24,10 +29,25 @@ pub(crate) struct GwasData {
     pub(crate) ses: Matrix,
 }
 
+pub(crate) struct Weights {
+    pub(crate) weights: Vec<f64>,
+    pub(crate) sum: f64,
+}
+
+pub(crate) struct LoadedData {
+    pub(crate) gwas_data: GwasData,
+    pub(crate) weights: Weights,
+}
+
 #[derive(Clone)]
 pub(crate) struct BetaSe {
     pub(crate) beta: f64,
     pub(crate) se: f64,
+}
+
+pub(crate) struct IdData {
+    beta_se_list: Vec<BetaSe>,
+    weight: f64
 }
 
 impl Meta {
@@ -66,6 +86,18 @@ impl GwasData {
     }
 }
 
+impl Weights {
+    fn new(n_data_points: usize) -> Weights {
+        let weights: Vec<f64> = Vec::with_capacity(n_data_points);
+        let sum: f64 = 0.0;
+        Weights { weights, sum }
+    }
+    fn add(&mut self, weight: f64) {
+        self.weights.push(weight);
+        self.sum += weight;
+    }
+}
+
 impl Display for BetaSe {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "beta={}, se={}", self.beta, self.se)
@@ -91,9 +123,9 @@ impl Display for GwasData {
     }
 }
 
-pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Error> {
+pub(crate) fn load_data(config: &Config, action: Action) -> Result<LoadedData, Error> {
     let n_traits = config.gwas.len();
-    let mut beta_se_by_ids: BTreeMap<String, Vec<BetaSe>> =
+    let mut beta_se_by_ids: BTreeMap<String, IdData> =
         match action {
             Action::Train => { load_ids(&config.train.ids_file, n_traits)? }
             Action::Classify => { BTreeMap::new() }
@@ -107,10 +139,12 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
     let mut var_ids: Vec<String> = Vec::with_capacity(n_data_points);
     let mut betas = Matrix::fill(n_data_points, n_traits, |_, _| f64::NAN);
     let mut ses = Matrix::fill(n_data_points, n_traits, |_, _| f64::NAN);
-    for (i_data_point, (var_id, beta_ses))
+    let mut weights = Weights::new(n_data_points);
+    for (i_data_point, (var_id, id_data))
     in beta_se_by_ids.into_iter().enumerate() {
         var_ids.push(var_id);
-        for (i_trait, beta_se) in beta_ses.into_iter().enumerate() {
+        weights.add(id_data.weight);
+        for (i_trait, beta_se) in id_data.beta_se_list.into_iter().enumerate() {
             betas[i_data_point][i_trait] = beta_se.beta;
             ses[i_data_point][i_trait] = beta_se.se;
         }
@@ -134,21 +168,37 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
         }
     }
     let meta = Meta::new(trait_names.into(), var_ids.into());
-    Ok(GwasData { meta, betas, ses })
+    let gwas_data = GwasData { meta, betas, ses };
+    Ok(LoadedData { gwas_data, weights })
 }
 
-fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, Vec<BetaSe>>, Error> {
-    let mut beta_se_by_id: BTreeMap<String, Vec<BetaSe>> = BTreeMap::new();
+fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, IdData>, Error> {
+    let mut beta_se_by_id: BTreeMap<String, IdData> = BTreeMap::new();
     for line
     in BufReader::new(for_file(ids_file, File::open(ids_file))?).lines() {
-        let line = line?.trim().to_string();
-        let beta_se_list: Vec<BetaSe> = new_beta_se_list(n_traits);
-        beta_se_by_id.insert(line, beta_se_list);
+        let line = line?;
+        let mut fields = line.trim().split(DELIM_LIST);
+        if let Some(id) = fields.next() {
+            if !id.is_empty() {
+                let beta_se_list: Vec<BetaSe> = new_beta_se_list(n_traits);
+                let weight =
+                    for_context_kind(id, ErrorKind::ParseFloat,
+                                     fields.next().map(|s| s.parse::<f64>()).transpose())?
+                        .unwrap_or(1.0);
+                if weight < 0.0 {
+                    Err(Error::from(
+                        format!("Negative weight ({weight}) for id {id}")
+                    ))?;
+                }
+                let id_data = IdData { beta_se_list, weight };
+                beta_se_by_id.insert(id.to_string(), id_data);
+            }
+        }
     }
     Ok(beta_se_by_id)
 }
 
-fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &GwasConfig,
+fn load_gaws(beta_se_by_id: &mut BTreeMap<String, IdData>, gwas_config: &GwasConfig,
              n_traits: usize, i_trait: usize, action: Action)
              -> Result<(), Error> {
     let file = &gwas_config.file;
@@ -157,12 +207,14 @@ fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &Gw
                         gwas_config.cols.clone().unwrap_or_default()))?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = for_context(file, gwas_record)?;
-        if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {
-            beta_se_list[i_trait] = BetaSe { beta, se };
+        if let Some(id_data) = beta_se_by_id.get_mut(&var_id) {
+            id_data.beta_se_list[i_trait] = BetaSe { beta, se };
         } else if action == Action::Classify {
             let mut beta_se_list = new_beta_se_list(n_traits);
             beta_se_list[i_trait] = BetaSe { beta, se };
-            beta_se_by_id.insert(var_id, beta_se_list);
+            let weight = 1.0;
+            let id_data = IdData { beta_se_list, weight };
+            beta_se_by_id.insert(var_id, id_data);
         }
     }
     Ok(())
