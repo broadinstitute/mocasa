@@ -62,9 +62,7 @@ impl VarStats {
         for j in 0..n_data_points {
             let mean_e2_j = self.e2_sums[j] / n_f;
             let mean_e_j = self.e_sums[j] / n_f;
-            sum_for_tau +=
-                weights.weights[j] *
-                    (mean_e2_j - 2.0 * mu * mean_e_j + weights.sum * mu.powi(2));
+            sum_for_tau += weights.weights[j] * (mean_e2_j - 2.0 * mu * mean_e_j + mu.powi(2));
         }
         let tau = (sum_for_tau / weights.sum).sqrt();
         let mut betas: Vec<f64> = Vec::with_capacity(n_traits);
