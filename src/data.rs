@@ -5,7 +5,7 @@ use std::io::{BufRead, BufReader};
 use std::sync::Arc;
 
 use crate::data::gwas::{GwasReader, GwasRecord};
-use crate::error::{Error, ErrorKind, for_context, for_context_kind, for_file};
+use crate::error::{Error, for_context, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::action::Action;
 use crate::options::config::{Config, GwasConfig};
@@ -174,6 +174,7 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<LoadedData, E
 
 fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, IdData>, Error> {
     let mut beta_se_by_id: BTreeMap<String, IdData> = BTreeMap::new();
+    let mut this_might_still_be_header: bool = true;
     for line
     in BufReader::new(for_file(ids_file, File::open(ids_file))?).lines() {
         let line = line?;
@@ -181,17 +182,25 @@ fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, IdData>,
         if let Some(id) = fields.next() {
             if !id.is_empty() {
                 let beta_se_list: Vec<BetaSe> = new_beta_se_list(n_traits);
-                let weight =
-                    for_context_kind(id, ErrorKind::ParseFloat,
-                                     fields.next().map(|s| s.parse::<f64>()).transpose())?
-                        .unwrap_or(1.0);
-                if weight < 0.0 {
-                    Err(Error::from(
-                        format!("Negative weight ({weight}) for id {id}")
-                    ))?;
+                match fields.next().map(|s| s.parse::<f64>()).transpose() {
+                    Ok(weight) => {
+                        this_might_still_be_header = false;
+                        let weight = weight.unwrap_or(1.0);
+                        if weight < 0.0 {
+                            Err(Error::from(
+                                format!("Negative weight ({weight}) for id {id}")
+                            ))?;
+                        }
+                        let id_data = IdData { beta_se_list, weight };
+                        beta_se_by_id.insert(id.to_string(), id_data);
+                    }
+                    Err(float_parse_error) => {
+                        if !this_might_still_be_header {
+                            let context = format!("Error parsing weight for id {id}");
+                            for_context(&context, Err(Error::from(float_parse_error)))?;
+                        }
+                    }
                 }
-                let id_data = IdData { beta_se_list, weight };
-                beta_se_by_id.insert(id.to_string(), id_data);
             }
         }
     }
