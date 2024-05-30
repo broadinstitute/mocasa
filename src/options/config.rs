@@ -1,4 +1,5 @@
-use std::fs::read_to_string;
+use std::fs::{File, read_to_string};
+use std::io::{BufWriter, Write};
 use serde::{Deserialize, Serialize};
 use crate::error::{Error, for_file};
 use crate::params::ParamsOverride;
@@ -57,3 +58,13 @@ pub(crate) fn load_config(file: &str) -> Result<Config, Error> {
     let config: Config = toml::from_str(&string)?;
     Ok(config)
 }
+
+pub(crate) fn write_config(config: &Config, config_file: &String) -> Result<(), Error> {
+    let config_string = toml::to_string(&config)?;
+    let config_file =
+        for_file(config_file, File::create(config_file))?;
+    let mut writer = BufWriter::new(config_file);
+    writer.write_all(config_string.as_bytes())?;
+    Ok(())
+}
+

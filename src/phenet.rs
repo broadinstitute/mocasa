@@ -6,7 +6,7 @@ use crate::data::gwas::GwasCols;
 use crate::error::{Error, for_file};
 use crate::math::matrix::Matrix;
 use crate::options::cli::ImportPhenetOptions;
-use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, SharedConfig, TrainConfig};
+use crate::options::config::{ClassifyConfig, Config, FilesConfig, GwasConfig, SharedConfig, TrainConfig, write_config};
 use crate::params::{Params, ParamsOverride};
 
 mod defaults {
@@ -276,11 +276,8 @@ pub(crate) fn import_phenet(options: &ImportPhenetOptions) -> Result<(), Error> 
     }
     config_builder.report();
     let config = config_builder.build_mocasa_config(options, phenet_opts)?;
-    let config_string = toml::to_string(&config)?;
-    let config_file =
-        for_file(&options.config_file, File::create(&options.config_file))?;
-    let mut writer = BufWriter::new(config_file);
-    writer.write_all(config_string.as_bytes())?;
+    let config_file = &options.config_file;
+    write_config(&config, config_file)?;
     if config_builder.got_some_params() {
         match config_builder.build_params() {
             Ok(params) => {

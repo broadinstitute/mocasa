@@ -18,6 +18,7 @@ mod phenet;
 mod params;
 mod sample;
 mod check;
+mod import;
 
 pub fn run() -> Result<(), Error> {
     match get_choice()? {
@@ -33,6 +34,9 @@ pub fn run() -> Result<(), Error> {
             }
         }
         Choice::ImportPhenet(options) => { phenet::import_phenet(&options) }
-        Choice::ScaleSigmas(options) => { params::transform::scale_sigmas(&options)}
+        Choice::ScaleSigmas(options) => {
+            params::transform::scale_sigmas(&options)
+        }
+        Choice::ImportParams(options) => { import::import(&options) }
     }
 }

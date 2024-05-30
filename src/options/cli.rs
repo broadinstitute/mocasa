@@ -4,28 +4,34 @@ use log::Level;
 use crate::error::Error;
 use crate::options::action;
 use crate::options::action::Action;
+use crate::options::cli::params::ArgDef;
 
 mod params {
-    pub(crate) const CONFIG_FILE: &str = "conf-file";
-    pub(crate) const CONFIG_FILE_SHORT: char = 'f';
-    pub(crate) const DRY: &str = "dry";
-    pub(crate) const DRY_SHORT: char = 'd';
-    pub(crate) const LOG: &str = "log";
-    pub(crate) const LOG_SHORT: char = 'l';
-    pub(crate) const PHENET_FILE: &str = "phenet-file";
-    pub(crate) const PHENET_FILE_SHORT: char = 'i';
-    pub(crate) const PARAMS_FILE: &str = "params-file";
-    pub(crate) const PARAMS_FILE_SHORT: char = 'p';
-    pub(crate) const IN_FILE: &str = "in-file";
-    pub(crate) const IN_FILE_SHORT: char = 'i';
-    pub(crate) const SCALE: &str = "scale";
-    pub(crate) const SCALE_SHORT: char = 's';
-    pub(crate) const OUT_FILE: &str = "out-file";
-    pub(crate) const OUT_FILE_SHORT: char = 'o';
-    pub(crate) const N_CHUNKS: &str = "n-chunks";
-    pub(crate) const N_CHUNKS_SHORT: char = 'x';
-    pub(crate) const I_CHUNK: &str = "i-chunk";
-    pub(crate) const I_CHUNK_SHORT: char = 'k';
+    pub(crate) struct ArgDef {
+        pub(crate) name: &'static str,
+        pub(crate) short: char,
+    }
+
+    impl ArgDef {
+        const fn new(name: &'static str, short: char) -> ArgDef {
+            ArgDef { name, short }
+        }
+    }
+
+    pub(crate) const CONFIG_FILE: ArgDef = ArgDef::new("conf-file", 'f');
+    pub(crate) const DRY: ArgDef = ArgDef::new("dry", 'd');
+    pub(crate) const LOG: ArgDef = ArgDef::new("log",'l');
+    pub(crate) const PHENET_FILE: ArgDef = ArgDef::new("phenet-file",'i');
+    pub(crate) const PARAMS_FILE: ArgDef = ArgDef::new("params-file", 'p');
+    pub(crate) const IN_FILE: ArgDef = ArgDef::new("in-file", 'i');
+    pub(crate) const SCALE: ArgDef = ArgDef::new("scale", 's');
+    pub(crate) const OUT_FILE: ArgDef = ArgDef::new("out-file", 'o');
+    pub(crate) const N_CHUNKS: ArgDef = ArgDef::new("n-chunks", 'x');
+    pub(crate) const I_CHUNK: ArgDef = ArgDef::new("i-chunk", 'k');
+    pub(crate) const VARIANTS: ArgDef = ArgDef::new("variants", 'v');
+    pub(crate) const BETAS: ArgDef = ArgDef::new("betas", 'b');
+    pub(crate) const SIGMAS: ArgDef = ArgDef::new("sigmas", 's');
+    pub(crate) const ENDOS: ArgDef = ArgDef::new("endos", 'e');
 }
 
 mod commands {
@@ -63,62 +69,81 @@ pub(crate) struct ScaleSigmasOptions {
     pub(crate) out_file: String,
 }
 
+pub(crate) struct ImportParamsOptions {
+    pub(crate) in_file: String,
+    pub(crate) variants: Option<String>,
+    pub(crate) betas: String,
+    pub(crate) sigmas: String,
+    pub(crate) endos: String,
+    pub(crate) params_file: String,
+    pub(crate) config_file: String,
+}
+
 pub(crate) enum Choice {
     Core(CoreOptions),
     ImportPhenet(ImportPhenetOptions),
     ScaleSigmas(ScaleSigmasOptions),
+    ImportParams(ImportParamsOptions),
 }
 
-fn new_arg(name: &'static str, short: char) -> Arg {
-    Arg::new(name).short(short).long(name)
+fn new_arg(arg_def: ArgDef) -> Arg {
+    Arg::new(arg_def.name).short(arg_def.short).long(arg_def.name)
 }
 
 fn new_action_command(name: &'static str) -> Command {
     Command::new(name)
         .arg_required_else_help(true)
-        .arg(new_arg(params::CONFIG_FILE, params::CONFIG_FILE_SHORT))
-        .arg(new_arg(params::DRY, params::DRY_SHORT).num_args(0)
-            .action(clap::ArgAction::SetTrue))
-        .arg(new_arg(params::N_CHUNKS, params::N_CHUNKS_SHORT)
-            .value_parser(clap::value_parser!(usize)))
-        .arg(new_arg(params::I_CHUNK, params::I_CHUNK_SHORT)
-            .value_parser(clap::value_parser!(usize)))
-        .arg(new_arg(params::LOG, params::LOG_SHORT))
+        .arg(new_arg(params::CONFIG_FILE))
+        .arg(new_arg(params::DRY).num_args(0).action(clap::ArgAction::SetTrue))
+        .arg(new_arg(params::N_CHUNKS).value_parser(clap::value_parser!(usize)))
+        .arg(new_arg(params::I_CHUNK).value_parser(clap::value_parser!(usize)))
+        .arg(new_arg(params::LOG))
 }
 
 fn new_import_phenet_command() -> Command {
     Command::new(commands::IMPORT_PHENET)
-        .arg(new_arg(params::PHENET_FILE, params::PHENET_FILE_SHORT))
-        .arg(new_arg(params::PARAMS_FILE, params::PARAMS_FILE_SHORT))
-        .arg(new_arg(params::CONFIG_FILE, params::CONFIG_FILE_SHORT))
-        .arg(new_arg(params::OUT_FILE, params::OUT_FILE_SHORT))
+        .arg(new_arg(params::PHENET_FILE))
+        .arg(new_arg(params::PARAMS_FILE))
+        .arg(new_arg(params::CONFIG_FILE))
+        .arg(new_arg(params::OUT_FILE))
 }
 
 fn new_scale_sigmas_command() -> Command {
     Command::new(commands::SCALE_SIGMAS)
-        .arg(new_arg(params::IN_FILE, params::IN_FILE_SHORT))
-        .arg(new_arg(params::SCALE, params::SCALE_SHORT)
-            .value_parser(clap::value_parser!(f64)))
-        .arg(new_arg(params::OUT_FILE, params::OUT_FILE_SHORT))
+        .arg(new_arg(params::IN_FILE))
+        .arg(new_arg(params::SCALE).value_parser(clap::value_parser!(f64)))
+        .arg(new_arg(params::OUT_FILE))
 }
 
-fn missing_option_error(name: &str, long: &str, short: char) -> Error {
-    Error::from(format!("Missing {} option ('--{}' or '-{}').", name, long, short))
+fn new_import_params_command() -> Command {
+    Command::new("import-params")
+        .arg(new_arg(params::IN_FILE))
+        .arg(new_arg(params::VARIANTS))
+        .arg(new_arg(params::BETAS))
+        .arg(new_arg(params::SIGMAS))
+        .arg(new_arg(params::ENDOS))
+        .arg(new_arg(params::PARAMS_FILE))
+        .arg(new_arg(params::CONFIG_FILE))
+}
+
+fn missing_option_error(name: &str, arg_def: ArgDef) -> Error {
+    Error::from(
+        format!("Missing {} option ('--{}' or '-{}').", name, arg_def.name, arg_def.short)
+    )
 }
 
 fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOptions, Error> {
     let config_file =
-        sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
-            missing_option_error("config file", params::CONFIG_FILE,
-                                 params::CONFIG_FILE_SHORT)
+        sub_matches.get_one::<String>(params::CONFIG_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("config file", params::CONFIG_FILE)
         })?;
-    let dry = sub_matches.get_flag(params::DRY);
+    let dry = sub_matches.get_flag(params::DRY.name);
     let log_level =
-        sub_matches.get_one::<String>(params::LOG)
+        sub_matches.get_one::<String>(params::LOG.name)
             .map(|log_str| Level::from_str(log_str)).transpose()?
             .unwrap_or(Level::Warn);
-    let n_chunks = sub_matches.get_one::<usize>(params::N_CHUNKS).cloned();
-    let i_chunk = sub_matches.get_one::<usize>(params::I_CHUNK).cloned();
+    let n_chunks = sub_matches.get_one::<usize>(params::N_CHUNKS.name).cloned();
+    let i_chunk = sub_matches.get_one::<usize>(params::I_CHUNK.name).cloned();
     let chunking =
         match (n_chunks, i_chunk) {
             (Some(n_chunks), Some(i_chunk)) =>
@@ -140,45 +165,67 @@ fn get_core_options(action: Action, sub_matches: &ArgMatches) -> Result<CoreOpti
 
 fn get_import_phenet_options(sub_matches: &ArgMatches) -> Result<ImportPhenetOptions, Error> {
     let phenet_file =
-        sub_matches.get_one::<String>(params::PHENET_FILE).cloned().ok_or_else(|| {
-            missing_option_error("phenet opts file", params::PHENET_FILE,
-                                 params::PHENET_FILE_SHORT)
+        sub_matches.get_one::<String>(params::PHENET_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("phenet opts file", params::PHENET_FILE)
         })?;
     let params_file =
-        sub_matches.get_one::<String>(params::PARAMS_FILE).cloned().ok_or_else(|| {
-            missing_option_error("Mocasa parameters file", params::PARAMS_FILE,
-                                 params::PARAMS_FILE_SHORT)
+        sub_matches.get_one::<String>(params::PARAMS_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("Mocasa parameters file", params::PARAMS_FILE)
         })?;
     let config_file =
-        sub_matches.get_one::<String>(params::CONFIG_FILE).cloned().ok_or_else(|| {
-            missing_option_error("Mocasa config file", params::CONFIG_FILE,
-                                 params::CONFIG_FILE_SHORT)
+        sub_matches.get_one::<String>(params::CONFIG_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("Mocasa config file", params::CONFIG_FILE)
         })?;
     let out_file =
-        sub_matches.get_one::<String>(params::OUT_FILE).cloned().ok_or_else(|| {
-            missing_option_error("Mocasa classification output file", params::OUT_FILE,
-                                 params::OUT_FILE_SHORT)
+        sub_matches.get_one::<String>(params::OUT_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("Mocasa classification output file", params::OUT_FILE)
         })?;
     Ok(ImportPhenetOptions { phenet_file, params_file, config_file, out_file })
 }
 
 fn get_scale_sigmas_options(sub_matches: &ArgMatches) -> Result<ScaleSigmasOptions, Error> {
     let in_file =
-        sub_matches.get_one::<String>(params::IN_FILE).cloned().ok_or_else(|| {
-            missing_option_error("input params file", params::IN_FILE,
-                                 params::IN_FILE_SHORT)
+        sub_matches.get_one::<String>(params::IN_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("input params file", params::IN_FILE)
         })?;
     let scale =
-        sub_matches.get_one::<f64>(params::SCALE).cloned().ok_or_else(|| {
-            missing_option_error("scale", params::SCALE,
-                                 params::SCALE_SHORT)
+        sub_matches.get_one::<f64>(params::SCALE.name).cloned().ok_or_else(|| {
+            missing_option_error("scale", params::SCALE)
         })?;
     let out_file =
-        sub_matches.get_one::<String>(params::OUT_FILE).cloned().ok_or_else(|| {
-            missing_option_error("output params file", params::OUT_FILE,
-                                 params::OUT_FILE_SHORT)
+        sub_matches.get_one::<String>(params::OUT_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("output params file", params::OUT_FILE)
         })?;
     Ok(ScaleSigmasOptions { in_file, scale, out_file })
+}
+
+fn get_import_params_options(sub_matches: &ArgMatches) -> Result<ImportParamsOptions, Error> {
+    let in_file =
+        sub_matches.get_one::<String>(params::IN_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("input config file", params::IN_FILE)
+        })?;
+    let variants = sub_matches.get_one::<String>(params::VARIANTS.name).cloned();
+    let betas =
+        sub_matches.get_one::<String>(params::BETAS.name).cloned().ok_or_else(|| {
+            missing_option_error("betas file", params::BETAS)
+        })?;
+    let sigmas =
+        sub_matches.get_one::<String>(params::SIGMAS.name).cloned().ok_or_else(|| {
+            missing_option_error("sigmas file", params::SIGMAS)
+        })?;
+    let endos =
+        sub_matches.get_one::<String>(params::ENDOS.name).cloned().ok_or_else(|| {
+            missing_option_error("endos file", params::ENDOS)
+        })?;
+    let params_file =
+        sub_matches.get_one::<String>(params::PARAMS_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("parameters file", params::PARAMS_FILE)
+        })?;
+    let config_file =
+        sub_matches.get_one::<String>(params::CONFIG_FILE.name).cloned().ok_or_else(|| {
+            missing_option_error("output config file", params::CONFIG_FILE)
+        })?;
+    Ok(ImportParamsOptions { in_file, variants, betas, sigmas, endos, params_file, config_file })
 }
 
 fn known_subcommands_message() -> String {
@@ -194,6 +241,7 @@ pub(crate) fn get_choice() -> Result<Choice, Error> {
         .subcommand(new_action_command(action::names::CLASSIFY))
         .subcommand(new_import_phenet_command())
         .subcommand(new_scale_sigmas_command())
+        .subcommand(new_import_params_command())
         .get_matches();
     match matches.subcommand() {
         Some((action::names::TRAIN, sub_matches)) => {
@@ -211,6 +259,10 @@ pub(crate) fn get_choice() -> Result<Choice, Error> {
         Some((commands::SCALE_SIGMAS, sub_matches)) => {
             let scale_sigmas_options = get_scale_sigmas_options(sub_matches)?;
             Ok(Choice::ScaleSigmas(scale_sigmas_options))
+        }
+        Some(("import-params", sub_matches)) => {
+            let import_params_options = get_import_params_options(sub_matches)?;
+            Ok(Choice::ImportParams(import_params_options))
         }
         Some((subcommand, _)) => {
             Err(Error::from(
