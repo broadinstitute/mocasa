@@ -103,10 +103,11 @@ pub(crate) fn load_data(config: &Config, action: Action) -> Result<GwasData, Err
             Action::Classify => { BTreeMap::new() }
         };
     let mut trait_names: Vec<String> = Vec::with_capacity(n_traits);
+    let mut only_ids_from_file: Option<Vec<String>> = None;
     let only_ids: &Option<Vec<String>> =
         match action {
             Action::Train => { &None }
-            Action::Classify => { &config.classify.only_ids }
+            Action::Classify => { get_only_ids(config, &mut only_ids_from_file)? }
         };
     for (i_trait, gwas) in config.gwas.iter().enumerate() {
         trait_names.push(gwas.name.clone());
@@ -158,13 +159,33 @@ fn load_ids(ids_file: &str, n_traits: usize) -> Result<BTreeMap<String, Vec<Beta
     Ok(beta_se_by_id)
 }
 
+fn get_only_ids<'a>(config: &'a Config, only_ids_from_file: &'a mut Option<Vec<String>>)
+                    -> Result<&'a Option<Vec<String>>, Error> {
+    match (&config.classify.only_ids, &config.classify.only_ids_file) {
+        (Some(_), None) => { Ok(&config.classify.only_ids) }
+        (None, Some(only_ids_file)) => {
+            let only_ids =
+                BufReader::new(for_file(only_ids_file, File::open(only_ids_file))?)
+                    .lines().map(|line| {
+                    match line {
+                        Ok(line) => { Ok(line.trim().to_string()) }
+                        Err(io_error) => { Err(Error::from(io_error)) }
+                    }
+                }).collect::<Result<Vec<String>, Error>>()?;
+            *only_ids_from_file = Some(only_ids);
+            Ok(only_ids_from_file)
+        }
+        _ => { Err(Error::from("Only one of only_ids and only_ids_file should be set")) }
+    }
+}
+
 fn load_gaws(beta_se_by_id: &mut BTreeMap<String, Vec<BetaSe>>, gwas_config: &GwasConfig,
              n_traits: usize, i_trait: usize, action: Action, only_ids: &Option<Vec<String>>)
              -> Result<(), Error> {
     let file = &gwas_config.file;
     let gwas_reader =
         for_context(file, GwasReader::new(BufReader::new(for_file(file, File::open(file))?),
-                        gwas_config.cols.clone().unwrap_or_default()))?;
+                                          gwas_config.cols.clone().unwrap_or_default()))?;
     for gwas_record in gwas_reader {
         let GwasRecord { var_id, beta, se } = for_context(file, gwas_record)?;
         if let Some(beta_se_list) = beta_se_by_id.get_mut(&var_id) {

@@ -220,10 +220,11 @@ impl ConfigBuilder {
         let n_samples = defaults::classify::N_SAMPLES;
         let out_file = options.out_file.clone();
         let only_ids: Option<Vec<String>> = None;
+        let only_ids_file: Option<String> = None;
         let trace_ids: Option<Vec<String>> = None;
         let classify =
             ClassifyConfig {
-                params_override, n_samples, out_file, only_ids, trace_ids
+                params_override, n_samples, out_file, only_ids, only_ids_file, trace_ids
             };
         Ok(Config { files, gwas, shared, train, classify })
     }

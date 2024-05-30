@@ -48,6 +48,7 @@ pub(crate) struct ClassifyConfig {
     pub(crate) n_samples: usize,
     pub(crate) out_file: String,
     pub(crate) only_ids: Option<Vec<String>>,
+    pub(crate) only_ids_file: Option<String>,
     pub(crate) trace_ids: Option<Vec<String>>
 }
 
