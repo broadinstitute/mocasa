@@ -50,18 +50,24 @@ fn next_line_prefix<T>(prefix: &str, lines: &mut Lines<BufReader<File>>, f: fn(&
     }
 }
 
+fn next_line_prefix_strings(prefix: &str, lines: &mut Lines<BufReader<File>>)
+                            -> Result<Vec<String>, Error> {
+    next_line_prefix(prefix, lines, |part| part.to_string())
+}
+
+fn next_line_prefix_numbers(prefix: &str, lines: &mut Lines<BufReader<File>>)
+                            -> Result<Vec<f64>, Error> {
+    next_line_prefix(prefix, lines, |part| part.parse::<f64>())?.into_iter()
+        .collect::<Result<Vec<f64>, ParseFloatError>>().map_err(Error::from)
+}
+
+
+
 fn load_endos(file: &str) -> Result<Endos, Error> {
     let mut lines =
         BufReader::new(for_file(file, File::open(file))?).lines();
-    let endos =
-        next_line_prefix("endos", &mut lines, |part| part.to_string())?;
-    let mus =
-        next_line_prefix("mus", &mut lines, |part| part.parse::<f64>())
-            .map_err(|error| Error::from(format!("Error parsing mu: {}", error)))?
-            .into_iter().collect::<Result<Vec<f64>, ParseFloatError>>()?;
-    let taus =
-        next_line_prefix("taus", &mut lines, |part| part.parse::<f64>())
-            .map_err(|error| Error::from(format!("Error parsing tau: {}", error)))?
-            .into_iter().collect::<Result<Vec<f64>, ParseFloatError>>()?;
+    let endos = next_line_prefix_strings("endos", &mut lines)?;
+    let mus = next_line_prefix_numbers("mus", &mut lines)?;
+    let taus = next_line_prefix_numbers("taus", &mut lines)?;
     Ok(Endos { endos, mus, taus })
 }
