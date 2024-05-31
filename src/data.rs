@@ -175,7 +175,10 @@ fn get_only_ids<'a>(config: &'a Config, only_ids_from_file: &'a mut Option<Vec<S
             *only_ids_from_file = Some(only_ids);
             Ok(only_ids_from_file)
         }
-        _ => { Err(Error::from("Only one of only_ids and only_ids_file should be set")) }
+        (Some(_), Some(_)) => {
+            Err(Error::from("Only one of only_ids and only_ids_file should be set"))
+        }
+        (None, None) => { Ok(&None) }
     }
 }
 
