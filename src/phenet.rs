@@ -22,6 +22,7 @@ mod defaults {
 
     pub(crate) mod classify {
         pub(crate) const N_SAMPLES: usize = 100_000;
+        pub(crate) const N_PARALLEL: usize = 5;
     }
 }
 
@@ -218,13 +219,15 @@ impl ConfigBuilder {
             };
         let params_override: Option<ParamsOverride> = None;
         let n_samples = defaults::classify::N_SAMPLES;
+        let n_parallel = defaults::classify::N_PARALLEL;
         let out_file = options.out_file.clone();
         let only_ids: Option<Vec<String>> = None;
         let only_ids_file: Option<String> = None;
         let trace_ids: Option<Vec<String>> = None;
         let classify =
             ClassifyConfig {
-                params_override, n_samples, out_file, only_ids, only_ids_file, trace_ids
+                params_override, n_samples, n_parallel, out_file, only_ids, only_ids_file,
+                trace_ids
             };
         Ok(Config { files, gwas, shared, train, classify })
     }
