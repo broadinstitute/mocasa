@@ -31,7 +31,7 @@ impl ClassifyTracer {
         }).collect::<Vec<_>>();
         let t_writers = (0..meta.n_traits()).map(|i_trait| {
             let var_name = format!("T_{}", i_trait);
-            let file_name = format!("{}_{}_{}", out_file_name, var_id, var_name);
+            let file_name = format!("{}_{}_trace_{}", out_file_name, var_id, var_name);
             let mut writer = try_writer(&file_name);
             try_trace(&mut writer, "T", i_trait, &var_name, &"chain");
             writer
