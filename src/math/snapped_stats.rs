@@ -28,13 +28,22 @@ impl Tally {
     }
     pub(crate) fn mean(&self) -> f64 { self.mean }
     pub(crate) fn variance(&self) -> f64 { self.m2 / (self.n as f64 - 1.0) }
-    pub(crate) fn minus(&self, other: &Tally) -> Tally {
-        let n = self.n - other.n;
-        let s_n_f = self.n as f64;
-        let o_n_f = other.n as f64;
+    pub(crate) fn plus(&self, rhs: &Tally) -> Tally {
+        let n = self.n + rhs.n;
+        let n_s_f = self.n as f64;
+        let n_r_f = rhs.n as f64;
         let n_f = n as f64;
-        let mean = (s_n_f * self.mean - o_n_f * other.mean) / n_f;
-        let m2 = self.m2 - other.m2 - (self.mean - mean).powi(2) * n_f * o_n_f / s_n_f;
+        let mean = (n_s_f * self.mean + n_r_f * rhs.mean) / n_f;
+        let m2 = self.m2 + rhs.m2 + (self.mean - rhs.mean).powi(2) * n_s_f * n_r_f / n_f;
+        Tally { n, mean, m2 }
+    }
+    pub(crate) fn minus(&self, rhs: &Tally) -> Tally {
+        let n = self.n - rhs.n;
+        let n_s_f = self.n as f64;
+        let n_r_f = rhs.n as f64;
+        let n_f = n as f64;
+        let mean = (n_s_f * self.mean - n_r_f * rhs.mean) / n_f;
+        let m2 = self.m2 - rhs.m2 - (rhs.mean - mean).powi(2) * n_f * n_r_f / n_s_f;
         Tally { n, mean, m2 }
     }
 }
