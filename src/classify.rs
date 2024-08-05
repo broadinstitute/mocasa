@@ -1,5 +1,6 @@
 mod worker;
 mod exact;
+mod tracer;
 
 use std::cmp;
 use std::fs::File;

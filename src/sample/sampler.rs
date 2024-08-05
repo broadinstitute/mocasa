@@ -13,6 +13,7 @@ pub(crate) struct Sampler<R: Rng> {
 pub(crate) trait Tracer {
     fn trace_e(&mut self, i_endo: usize, e: f64, i_chain: usize);
     fn trace_t(&mut self, i_trait: usize, t: f64, i_chain: usize);
+    fn write_values(&mut self);
 }
 
 pub(crate) struct NoOpTracer;
@@ -24,6 +25,8 @@ impl NoOpTracer {
 impl Tracer for NoOpTracer {
     fn trace_e(&mut self, _i_endo: usize, _e: f64, _i_chain: usize) {}
     fn trace_t(&mut self, _i_trait: usize, _t: f64, _i_chain: usize) {}
+
+    fn write_values(&mut self) {}
 }
 
 impl<R: Rng> Sampler<R> {
@@ -57,6 +60,7 @@ impl<R: Rng> Sampler<R> {
             }
             self.var_stats.add(vars);
         }
+        tracer.write_values();
     }
     pub(crate) fn var_stats(&self) -> &VarStats { &self.var_stats }
 }

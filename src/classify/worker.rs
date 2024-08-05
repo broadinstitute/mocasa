@@ -1,75 +1,16 @@
-use std::fmt::Display;
-use std::fs::File;
-use std::io::{BufWriter, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 use log::{info, warn};
 use rand::prelude::ThreadRng;
 use rand::thread_rng;
 use crate::classify::{Classification, MessageToCentral, MessageToWorker};
-use crate::data::{GwasData, Meta};
+use crate::data::GwasData;
 use crate::options::config::{ClassifyConfig, SharedConfig};
 use crate::sample::vars::Vars;
 use crate::params::Params;
 use crate::sample::sampler::{Tracer, Sampler, NoOpTracer};
 use crate::classify::exact::calculate_mu;
-use crate::error::Error;
-
-struct ClassifyTracer {
-    e_writers: Vec<Result<BufWriter<File>, Error>>,
-    t_writers: Vec<Result<BufWriter<File>, Error>>,
-}
-
-impl ClassifyTracer {
-    fn new(meta: &Meta, out_file_name: &str, var_id: &str, n_endos: usize) -> ClassifyTracer {
-        let e_writers = (0..n_endos).map(|i_endo| {
-            let var_name = format!("E_{}", i_endo);
-            let file_name = format!("{}_{}_trace_{}", out_file_name, var_id, var_name);
-            let mut writer = try_writer(&file_name);
-            try_trace(&mut writer, "E", i_endo, &var_name, &"chain");
-            writer
-        }).collect::<Vec<_>>();
-        let t_writers = (0..meta.n_traits()).map(|i_trait| {
-            let var_name = format!("T_{}", i_trait);
-            let file_name = format!("{}_{}_trace_{}", out_file_name, var_id, var_name);
-            let mut writer = try_writer(&file_name);
-            try_trace(&mut writer, "T", i_trait, &var_name, &"chain");
-            writer
-        }).collect::<Vec<_>>();
-        ClassifyTracer { e_writers, t_writers }
-    }
-}
-
-fn try_writer(file_name: &str) -> Result<BufWriter<File>, Error> {
-    match File::create(file_name) {
-        Ok(file) => { Ok(BufWriter::new(file)) }
-        Err(error) => { Err(Error::from(error)) }
-    }
-}
-
-fn try_trace(writer: &mut Result<BufWriter<File>, Error>, name: &str, index: usize,
-             item1: &dyn Display, item2: &dyn Display) {
-    match writer {
-        Ok(ref mut writer) => {
-            if let Err(error) = writeln!(writer, "{}\t{}", item1, item2) {
-                warn!("Could not write {}_{} trace: {}", name, index, error)
-            }
-        }
-        Err(ref error) => {
-            warn!("Could not write {}_{} trace: {}", name, index, error)
-        }
-    }
-}
-
-impl Tracer for ClassifyTracer {
-    fn trace_e(&mut self, i_endo: usize, e: f64, i_chain: usize) {
-        try_trace(&mut self.e_writers[i_endo], "E", i_endo, &e, &i_chain);
-    }
-
-    fn trace_t(&mut self, i_trait: usize, t: f64, i_chain: usize) {
-        try_trace(&mut self.t_writers[i_trait], "T", i_trait, &t, &i_chain);
-    }
-}
+use crate::classify::tracer::ClassifyTracer;
 
 pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: ClassifyConfig,
                               config_shared: SharedConfig, sender: Sender<MessageToCentral>,
@@ -102,7 +43,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                         => {
                             let tracer =
                                 ClassifyTracer::new(&meta, &config.out_file, var_id,
-                                                    meta.n_endos());
+                                                    meta.n_endos(), config.n_parallel());
                             Box::new(tracer) as Box<dyn Tracer>
                         }
                         _ => { Box::new(NoOpTracer::new()) }
