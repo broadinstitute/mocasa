@@ -22,7 +22,7 @@ mod defaults {
 
     pub(crate) mod classify {
         pub(crate) const N_SAMPLES: usize = 100_000;
-        pub(crate) const N_PARALLEL: usize = 5;
+        pub(crate) const N_PARALLEL: Option<usize> = None;
     }
 }
 

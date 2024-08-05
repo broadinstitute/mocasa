@@ -89,7 +89,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                 }
                 let params = params.reduce_to(trait_names, &is_col);
                 let mut vars: Vec<Vars> =
-                    (0..config.n_parallel)
+                    (0..config.n_parallel())
                         .map(|_| Vars::initial_vars(&data, &params))
                         .collect();
                 let rng = thread_rng();

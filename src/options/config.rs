@@ -47,11 +47,17 @@ pub(crate) struct TrainConfig {
 pub(crate) struct ClassifyConfig {
     pub(crate) params_override: Option<ParamsOverride>,
     pub(crate) n_samples: usize,
-    pub(crate) n_parallel: usize,
+    pub(crate) n_parallel: Option<usize>,
     pub(crate) out_file: String,
     pub(crate) only_ids: Option<Vec<String>>,
     pub(crate) only_ids_file: Option<String>,
     pub(crate) trace_ids: Option<Vec<String>>
+}
+
+impl ClassifyConfig {
+    pub(crate) fn n_parallel(&self) -> usize {
+        self.n_parallel.unwrap_or(1)
+    }
 }
 
 pub(crate) fn load_config(file: &str) -> Result<Config, Error> {
