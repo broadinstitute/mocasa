@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
@@ -6,6 +5,7 @@ use log::warn;
 use crate::data::Meta;
 use crate::error::Error;
 use crate::sample::sampler::Tracer;
+use crate::util::joiner::Joiner;
 
 
 struct Writer {
@@ -24,12 +24,12 @@ impl Writer {
         let writer = try_writer(file_name);
         Writer { buffer, writer }
     }
-    fn prepare(&mut self, i_chain: usize, value: f64) {
+    fn set_value(&mut self, i_chain: usize, value: f64) {
         self.buffer[i_chain] = value;
     }
     fn write_values(&mut self) {
         if let Ok(ref mut writer) = self.writer {
-            if let Err(error) = writeln!(writer, "{}", self.buffer.join("\t")) {
+            if let Err(error) = writeln!(writer, "{}", Joiner::new("\t", &self.buffer)) {
                 warn!("Could not write trace: {}", error)
             }
         }
@@ -60,27 +60,13 @@ fn try_writer(file_name: &str) -> Result<BufWriter<File>, Error> {
     }
 }
 
-fn try_trace(writer: &mut Writer, name: &str, index: usize,
-             item1: &dyn Display, item2: &dyn Display) {
-    match writer.writer {
-        Ok(ref mut writer) => {
-            if let Err(error) = writeln!(writer, "{}\t{}", item1, item2) {
-                warn!("Could not write {}_{} trace: {}", name, index, error)
-            }
-        }
-        Err(ref error) => {
-            warn!("Could not write {}_{} trace: {}", name, index, error)
-        }
-    }
-}
-
 impl Tracer for ClassifyTracer {
     fn trace_e(&mut self, i_endo: usize, e: f64, i_chain: usize) {
-        try_trace(&mut self.e_writers[i_endo], "E", i_endo, &e, &i_chain);
+        self.e_writers[i_endo].set_value(i_chain, e);
     }
 
     fn trace_t(&mut self, i_trait: usize, t: f64, i_chain: usize) {
-        try_trace(&mut self.t_writers[i_trait], "T", i_trait, &t, &i_chain);
+        self.t_writers[i_trait].set_value(i_chain, t);
     }
     fn write_values(&mut self) {
         for writer in self.e_writers.iter_mut() {
