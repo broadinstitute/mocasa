@@ -35,7 +35,8 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                         .collect();
                 let rng = thread_rng();
                 let meta = data.meta.clone();
-                let mut sampler = Sampler::<ThreadRng>::new(&meta, rng);
+                let n_chains = config.n_parallel();
+                let mut sampler = Sampler::<ThreadRng>::new(&meta, rng, n_chains);
                 let mut tracer =
                     match (&config.trace_ids, data.meta.var_ids.first()) {
                         (Some(trace_ids), Some(var_id))
@@ -43,7 +44,7 @@ pub(crate) fn classify_worker(data: &Arc<GwasData>, params: &Params, config: Cla
                         => {
                             let tracer =
                                 ClassifyTracer::new(&meta, &config.out_file, var_id,
-                                                    meta.n_endos(), config.n_parallel());
+                                                    meta.n_endos(), n_chains);
                             Box::new(tracer) as Box<dyn Tracer>
                         }
                         _ => { Box::new(NoOpTracer::new()) }

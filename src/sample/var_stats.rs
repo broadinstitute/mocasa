@@ -25,8 +25,8 @@ impl VarStats {
         let n_data_points = meta.n_data_points();
         let n_endos = meta.n_endos();
         let n_traits = meta.n_traits();
-        let e_sums: Matrix = Matrix::fill(n_data_points, n_endos, |_,_| 0.0);
-        let e2_sums: Matrix = Matrix::fill(n_data_points, n_endos, |_,_| 0.0);
+        let e_sums: Matrix = Matrix::fill(n_data_points, n_endos, |_, _| 0.0);
+        let e2_sums: Matrix = Matrix::fill(n_data_points, n_endos, |_, _| 0.0);
         // let e_t_sums: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| 0.0);
         let t_sums: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| 0.0);
         let t2_sums: Matrix = Matrix::fill(n_data_points, n_traits, |_, _| 0.0);
@@ -50,6 +50,29 @@ impl VarStats {
                 self.t2_sums[i_data_point][i_trait] += t_j_i.powi(2);
             }
         }
+    }
+    pub(crate) fn sum(stats_list: &[VarStats]) -> VarStats {
+        let meta = stats_list[0].meta.clone();
+        let n = stats_list.iter().map(|stats| stats.n).sum();
+        let n_data_points = meta.n_data_points();
+        let n_endos = meta.n_endos();
+        let n_traits = meta.n_traits();
+        let e_sums = Matrix::fill(n_data_points, n_endos, |i, j| {
+            stats_list.iter().map(|stats| stats.e_sums[i][j]).sum()
+        });
+        let e2_sums = Matrix::fill(n_data_points, n_endos, |i, j| {
+            stats_list.iter().map(|stats| stats.e2_sums[i][j]).sum()
+        });
+        // let e_t_sums = Matrix::fill(n_data_points, n_traits, |i, j| {
+        //     stats_list.iter().map(|stats| stats.e_t_sums[i][j]).sum()
+        // });
+        let t_sums = Matrix::fill(n_data_points, n_traits, |i, j| {
+            stats_list.iter().map(|stats| stats.t_sums[i][j]).sum()
+        });
+        let t2_sums = Matrix::fill(n_data_points, n_traits, |i, j| {
+            stats_list.iter().map(|stats| stats.t2_sums[i][j]).sum()
+        });
+        VarStats { meta, n, e_sums, e2_sums, /* e_t_sums, */ t_sums, t2_sums }
     }
     pub(crate) fn compute_new_params(&self) -> Params {
         // let meta = &self.meta;
@@ -117,7 +140,62 @@ impl VarStats {
         }
         let e_std =
             (0..n_endos).map(|i_endo|
-                (e2_mean[i_endo] - e_mean[i_endo].powi(2)).sqrt()).collect::<Vec<f64>>();
+            (e2_mean[i_endo] - e_mean[i_endo].powi(2)).sqrt()).collect::<Vec<f64>>();
         SampledClassification { e_mean, e_std, t_means }
+    }
+    pub(crate) fn calculate_convergence(var_stats_list: &[VarStats]) -> f64 {
+        let meta = &var_stats_list[0].meta;
+        let n_data_points = meta.n_data_points();
+        let n_endos = meta.n_endos();
+        let n_traits = meta.n_traits();
+        let var_ratio: f64 =
+            (0..n_data_points).map(|i_data_point| {
+                let e_ratio_sum: f64 =
+                    (0..n_endos).map(|i_endo| {
+                        let e_var_mean: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                let e_mean = stats.e_sums[i_data_point][i_endo] / n;
+                                let e2_mean = stats.e2_sums[i_data_point][i_endo] / n;
+                                e2_mean - e_mean.powi(2)
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        let e_mean_mean: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                stats.e_sums[i_data_point][i_endo] / n
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        let e_mean_var: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                let e_mean: f64 = stats.e_sums[i_data_point][i_endo] / n;
+                                (e_mean - e_mean_mean).powi(2)
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        e_mean_var / e_var_mean
+                    }).sum();
+                let t_ratio_sum: f64 =
+                    (0..n_traits).map(|i_trait| {
+                        let t_var_mean: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                let t_mean = stats.t_sums[i_data_point][i_trait] / n;
+                                let t2_mean = stats.t2_sums[i_data_point][i_trait] / n;
+                                t2_mean - t_mean.powi(2)
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        let t_mean_mean: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                stats.t_sums[i_data_point][i_trait] / n
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        let t_mean_var: f64 =
+                            var_stats_list.iter().map(|stats| {
+                                let n = stats.n as f64;
+                                let t_mean = stats.t_sums[i_data_point][i_trait] / n;
+                                (t_mean - t_mean_mean).powi(2)
+                            }).sum::<f64>() / (var_stats_list.len() as f64);
+                        t_mean_var / t_var_mean
+                    }).sum();
+                (e_ratio_sum + t_ratio_sum) / ((n_endos + n_traits) as f64)
+            }).sum::<f64>() / (n_data_points as f64);
+        var_ratio.sqrt()
     }
 }

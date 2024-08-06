@@ -5,6 +5,7 @@ use log::warn;
 use crate::data::Meta;
 use crate::error::Error;
 use crate::sample::sampler::Tracer;
+use crate::sample::var_stats::VarStats;
 use crate::util::joiner::Joiner;
 
 
@@ -16,6 +17,7 @@ struct Writer {
 pub(crate) struct ClassifyTracer {
     e_writers: Vec<Writer>,
     t_writers: Vec<Writer>,
+    conv_writer: Result<BufWriter<File>, Error>
 }
 
 impl Writer {
@@ -49,7 +51,9 @@ impl ClassifyTracer {
             let file_name = format!("{}_{}_trace_{}", out_file_name, var_id, var_name);
             Writer::new(&file_name, n_chains)
         }).collect::<Vec<_>>();
-        ClassifyTracer { e_writers, t_writers }
+        let conv_file_name = format!("{}_{}_trace_conv", out_file_name, var_id);
+        let conv_writer = try_writer(&conv_file_name);
+        ClassifyTracer { e_writers, t_writers, conv_writer }
     }
 }
 
@@ -74,6 +78,15 @@ impl Tracer for ClassifyTracer {
         }
         for writer in self.t_writers.iter_mut() {
             writer.write_values()
+        }
+    }
+
+    fn trace_convergence(&mut self, var_stats_list: &[VarStats]) {
+        if let Ok(ref mut writer) = self.conv_writer {
+            let convergence = VarStats::calculate_convergence(var_stats_list);
+            if let Err(error) = writeln!(writer, "{}", convergence) {
+                warn!("Could not write convergence: {}", error)
+            }
         }
     }
 }

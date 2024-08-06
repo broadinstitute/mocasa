@@ -7,13 +7,14 @@ use crate::sample::vars::{VarIndex, Vars};
 
 pub(crate) struct Sampler<R: Rng> {
     gibbs: GibbsSampler<R>,
-    var_stats: VarStats,
+    var_stats_list: Vec<VarStats>,
 }
 
 pub(crate) trait Tracer {
     fn trace_e(&mut self, i_endo: usize, e: f64, i_chain: usize);
     fn trace_t(&mut self, i_trait: usize, t: f64, i_chain: usize);
     fn write_values(&mut self);
+    fn trace_convergence(&mut self, var_stats_list: &[VarStats]);
 }
 
 pub(crate) struct NoOpTracer;
@@ -27,13 +28,16 @@ impl Tracer for NoOpTracer {
     fn trace_t(&mut self, _i_trait: usize, _t: f64, _i_chain: usize) {}
 
     fn write_values(&mut self) {}
+
+    fn trace_convergence(&mut self, _var_stats_list: &[VarStats]) {}
 }
 
 impl<R: Rng> Sampler<R> {
-    pub(crate) fn new(meta: &Meta, rng: R) -> Sampler<R> {
+    pub(crate) fn new(meta: &Meta, rng: R, n_chains: usize) -> Sampler<R> {
         let gibbs = GibbsSampler::new(rng);
-        let var_stats = VarStats::new(meta.clone());
-        Sampler { gibbs, var_stats }
+        let var_stats_list =
+            (0..n_chains).map(|_| VarStats::new(meta.clone())).collect();
+        Sampler { gibbs, var_stats_list }
     }
     pub(crate) fn sample_n(&mut self, data: &GwasData, params: &Params, vars: &mut [Vars],
                            n_steps: usize, tracer: &mut dyn Tracer) {
@@ -58,9 +62,10 @@ impl<R: Rng> Sampler<R> {
                     }
                 }
             }
-            self.var_stats.add(vars);
+            self.var_stats_list[i_chain].add(vars);
         }
         tracer.write_values();
+        tracer.trace_convergence(&self.var_stats_list);
     }
-    pub(crate) fn var_stats(&self) -> &VarStats { &self.var_stats }
+    pub(crate) fn var_stats(&self) -> VarStats { VarStats::sum(&self.var_stats_list) }
 }
