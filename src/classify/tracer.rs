@@ -6,7 +6,8 @@ use crate::data::Meta;
 use crate::error::Error;
 use crate::sample::sampler::Tracer;
 use crate::sample::var_stats::VarStats;
-use crate::util::joiner::Joiner;
+use crate::sample::vars::Vars;
+use crate::util::joiner::{Joiner, write_iter_io};
 
 
 struct Writer {
@@ -52,7 +53,13 @@ impl ClassifyTracer {
             Writer::new(&file_name, n_chains)
         }).collect::<Vec<_>>();
         let conv_file_name = format!("{}_{}_trace_conv", out_file_name, var_id);
-        let conv_writer = try_writer(&conv_file_name);
+        let mut conv_writer = try_writer(&conv_file_name);
+        if let Ok(conv_writer) = &mut conv_writer {
+            let variable_names = Vars::variable_names(meta);
+            if let Err(error) = write_iter_io(conv_writer, variable_names, "\t") {
+                warn!("Could not write convergence: {}", error)
+            }
+        }
         ClassifyTracer { e_writers, t_writers, conv_writer }
     }
 }
@@ -83,8 +90,9 @@ impl Tracer for ClassifyTracer {
 
     fn trace_convergence(&mut self, var_stats_list: &[VarStats]) {
         if let Ok(ref mut writer) = self.conv_writer {
-            let convergence = VarStats::calculate_convergence(var_stats_list);
-            if let Err(error) = writeln!(writer, "{}", convergence) {
+            let convergence =
+                VarStats::calculate_convergences(var_stats_list);
+            if let Err(error) = write_iter_io(writer, convergence, "\t") {
                 warn!("Could not write convergence: {}", error)
             }
         }

@@ -42,4 +42,11 @@ impl Vars {
                              });
         Vars { meta, es, ts }
     }
+    pub(crate) fn variable_names(meta: &Meta) -> impl Iterator<Item=String> + '_ {
+        let e_iter =
+            (0..meta.n_endos()).map(move |i_endo| format!("E_{}", i_endo));
+        let t_iter =
+            meta.trait_names().iter().map(|trait_name| format!("T_{}", trait_name));
+        e_iter.chain(t_iter)
+    }
 }
