@@ -56,11 +56,16 @@ impl ClassifyTracer {
         let mut conv_writer = try_writer(&conv_file_name);
         if let Ok(conv_writer) = &mut conv_writer {
             let variable_names = Vars::variable_names(meta);
-            if let Err(error) = write_iter_io(conv_writer, variable_names, "\t") {
-                warn!("Could not write convergence: {}", error)
-            }
+            warn_if_err(write_iter_io(conv_writer, variable_names, "\t"));
+            warn_if_err(writeln!(conv_writer))
         }
         ClassifyTracer { e_writers, t_writers, conv_writer }
+    }
+}
+
+fn warn_if_err<T>(result: std::io::Result<T>) {
+    if let Err(error) = result {
+        warn!("{}", error)
     }
 }
 
@@ -92,9 +97,8 @@ impl Tracer for ClassifyTracer {
         if let Ok(ref mut writer) = self.conv_writer {
             let convergence =
                 VarStats::calculate_convergences(var_stats_list);
-            if let Err(error) = write_iter_io(writer, convergence, "\t") {
-                warn!("Could not write convergence: {}", error)
-            }
+            warn_if_err(write_iter_io(writer, convergence, "\t"));
+            warn_if_err(writeln!(writer));
         }
     }
 }
